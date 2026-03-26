@@ -1,0 +1,20 @@
+[default.extend-words]
+# Allow these "words" that typos might flag
+cpal = "cpal"
+stt = "stt"
+llm = "llm"
+byok = "byok"
+hotkey = "hotkey"
+
+[files]
+extend-exclude = [
+  "*.lock",
+  "node_modules/",
+  "target/",
+  "dist/",
+  "*.min.js",
+  "*.min.css",
+  "CHANGELOG.md",
+]
+
+[default.extend-identifiers]
