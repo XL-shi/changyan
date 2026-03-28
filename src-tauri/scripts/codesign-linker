@@ -1,0 +1,29 @@
+#!/bin/bash
+# Cargo linker wrapper: links the binary then immediately codesigns it.
+# This ensures the binary is signed before tauri dev launches it,
+# so macOS Accessibility permissions persist across rebuilds.
+
+/usr/bin/cc "$@"
+RESULT=$?
+if [ $RESULT -ne 0 ]; then exit $RESULT; fi
+
+# Extract the -o <output> argument
+OUTPUT=""
+NEXT=0
+for arg in "$@"; do
+  if [ $NEXT -eq 1 ]; then
+    OUTPUT="$arg"
+    NEXT=0
+  fi
+  if [ "$arg" = "-o" ]; then
+    NEXT=1
+  fi
+done
+
+# Only sign the main app binary, not intermediate artifacts
+if [[ -n "$OUTPUT" && "$(basename "$OUTPUT")" = "opentypeless" ]]; then
+  codesign --force --sign "OpenTypeless Dev" "$OUTPUT" >/dev/null 2>&1 && \
+    echo "codesign: ✓ signed $(basename "$OUTPUT")" >&2 || true
+fi
+
+exit 0

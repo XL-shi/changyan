@@ -72,7 +72,47 @@
     "llm": "LLM",
     "output": "Output",
     "releaseToStop": "Release to stop recording",
-    "holdAndSay": "Hold and say something"
+    "holdAndSay": "Hold and say something",
+    "signInSubtitle": "Sign in to get free cloud minutes, or skip to use your own API keys",
+    "chooseModeTitle": "Choose Your Mode",
+    "chooseModeSubtitle": "How would you like to use OpenTypeless?",
+    "modeCloud": "Cloud",
+    "modeCloudRecommended": "Recommended",
+    "modeCloudDesc": "Zero config, ready to go",
+    "modeCloudVoice": "15 min voice",
+    "modeCloudTokens": "100K AI tokens",
+    "modeCloudCredit": "One-time free credit",
+    "modeBYOK": "Bring Your Own Key",
+    "modeBYOKDesc": "Use your own API keys",
+    "modeBYOKUnlimited": "Unlimited usage",
+    "modeBYOKProviders": "12+ providers supported",
+    "signedInAs": "Signed in as",
+    "freePlanDesc": "15 min voice + 100K tokens",
+    "checkEmail": "Check your email",
+    "checkEmailDesc": "We sent a verification link to your email. Click it to verify, then come back and sign in.",
+    "sending": "Sending...",
+    "resendVerification": "Resend verification email",
+    "verificationSent": "Verification email sent!",
+    "backToSignIn": "Back to Sign In",
+    "orDivider": "or",
+    "capsuleOnDesktop": "The capsule is now on your desktop",
+    "phaseIdle": "Press the hotkey to start",
+    "phaseRecording": "Speaking...",
+    "phaseTranscribing": "Converting speech to text",
+    "phasePolishing": "AI refines your words",
+    "phaseComplete": "Done — typed into your app",
+    "labelTranscribing": "Transcribing",
+    "labelRaw": "Raw",
+    "labelPolished": "Polished",
+    "labelResult": "Result",
+    "tipHotkeyHold": "to talk anywhere",
+    "tipHotkeyToggle": "to start/stop recording",
+    "tipClickCapsule": "Click the capsule",
+    "tipClickCapsuleDesc": "to start recording",
+    "tipDrag": "Drag to reposition",
+    "tipDragDesc": "place it anywhere on screen",
+    "tipRightClick": "Right-click for menu",
+    "tipRightClickDesc": "settings, history, and more"
   },
   "capsule": {
     "cancelRecording": "Cancel recording",
@@ -105,6 +145,11 @@
     "outputMode": "Output Mode",
     "keyboardSimulation": "Keyboard Simulation",
     "clipboardPaste": "Clipboard Paste",
+    "accessibility": "Accessibility Permission",
+    "accessibilityGranted": "Permission granted ✓",
+    "accessibilityDesc": "Required for keyboard & auto-paste output",
+    "accessibilityGrant": "Open Accessibility Settings",
+    "accessibilityRecheck": "Re-check",
     "other": "Other",
     "launchAtStartup": "Launch at Startup",
     "startMinimized": "Start minimized to tray",
@@ -143,7 +188,8 @@
     "framework": "Framework",
     "tauriReact": "Tauri v2 + React",
     "view": "View",
-    "maxRecordingDuration": "Max Recording Duration"
+    "maxRecordingDuration": "Max Recording Duration",
+    "uiLanguage": "Interface Language"
   },
   "dictionary": {
     "word": "Word",
@@ -224,6 +270,11 @@
     "oauthPendingDesc": "Finish signing in with your browser. You'll be redirected back automatically.",
     "oauthTimeout": "Sign in timed out. Please try again.",
     "cancel": "Cancel"
+  },
+  "pipeline": {
+    "error": {
+      "accessibilityNoPermission": "Text copied to clipboard. Enable OpenTypeless in System Settings → Accessibility for auto-paste."
+    }
   },
   "error": {
     "somethingWentWrong": "Something went wrong",

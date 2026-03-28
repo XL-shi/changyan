@@ -661,6 +661,33 @@ async fn set_session_token(
     Ok(())
 }
 
+/// Checks whether Accessibility permission is granted for the current process.
+#[tauri::command]
+fn request_accessibility_permission() -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        #[link(name = "ApplicationServices", kind = "framework")]
+        extern "C" {
+            fn AXIsProcessTrusted() -> u8;
+        }
+        unsafe { AXIsProcessTrusted() != 0 }
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        true
+    }
+}
+
+#[tauri::command]
+fn open_accessibility_settings() {
+    #[cfg(target_os = "macos")]
+    {
+        let _ = std::process::Command::new("open")
+            .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+            .spawn();
+    }
+}
+
 #[tauri::command]
 async fn set_auto_start(
     app: tauri::AppHandle,
@@ -1305,6 +1332,8 @@ pub fn run() {
             resume_hotkey,
             set_auto_start,
             set_session_token,
+            request_accessibility_permission,
+            open_accessibility_settings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

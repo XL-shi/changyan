@@ -26,6 +26,7 @@ export type LlmProvider =
 export type OutputMode = 'keyboard' | 'clipboard'
 export type HotkeyMode = 'hold' | 'toggle'
 export type Theme = 'light' | 'dark' | 'system'
+export type UiLanguage = 'en' | 'zh'
 
 export interface HistoryEntry {
   id: number
@@ -60,6 +61,7 @@ export interface AppConfig {
   output_mode: OutputMode
   selected_text_enabled: boolean
   theme: Theme
+  ui_language: UiLanguage
   auto_start: boolean
   close_to_tray: boolean
   start_minimized: boolean
@@ -164,6 +166,7 @@ const defaultConfig: AppConfig = {
   output_mode: 'keyboard',
   selected_text_enabled: false,
   theme: 'system',
+  ui_language: 'en',
   auto_start: false,
   close_to_tray: true,
   start_minimized: false,

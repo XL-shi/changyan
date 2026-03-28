@@ -82,7 +82,7 @@ pub struct PipelineHandle {
     audio_handle: Arc<Mutex<Option<AudioCaptureHandle>>>,
     audio_volume: Arc<Mutex<f32>>,
     accumulated_text: Arc<Mutex<String>>,
-    stt_done: Arc<Notify>,
+    stt_done: Arc<Mutex<Arc<Notify>>>,
     preloaded_config: Arc<Mutex<Option<storage::AppConfig>>>,
     preloaded_app_ctx: Arc<Mutex<Option<app_detector::AppContext>>>,
     preloaded_dictionary: Arc<Mutex<Option<Vec<String>>>>,
@@ -99,7 +99,7 @@ impl PipelineHandle {
             audio_handle: Arc::new(Mutex::new(None)),
             audio_volume: Arc::new(Mutex::new(0.0)),
             accumulated_text: Arc::new(Mutex::new(String::new())),
-            stt_done: Arc::new(Notify::new()),
+            stt_done: Arc::new(Mutex::new(Arc::new(Notify::new()))),
             preloaded_config: Arc::new(Mutex::new(None)),
             preloaded_app_ctx: Arc::new(Mutex::new(None)),
             preloaded_dictionary: Arc::new(Mutex::new(None)),
@@ -363,7 +363,11 @@ impl PipelineHandle {
         // STT streaming task — provider is already connected
         let app_handle = self.app_handle.clone();
         let accumulated = self.accumulated_text.clone();
-        let stt_done = self.stt_done.clone();
+        // Create a fresh Notify for this recording session to avoid leftover
+        // permits from the previous recording polluting the next stop() wait.
+        let fresh_stt_done = Arc::new(Notify::new());
+        *self.stt_done.lock().unwrap_or_else(|e| e.into_inner()) = fresh_stt_done.clone();
+        let stt_done = fresh_stt_done;
 
         tokio::spawn(async move {
             // Forward audio to STT and receive transcripts
@@ -375,19 +379,28 @@ impl PipelineHandle {
                                 let _ = provider.send_audio(&data).await;
                             }
                             None => {
-                                // Audio channel closed — disconnect and capture final transcript
-                                match provider.disconnect().await {
-                                    Ok(Some(text)) => {
+                                // Audio channel closed — disconnect and capture final transcript.
+                                // Timeout after 30s to avoid hanging if the provider stalls.
+                                let disconnect_result = tokio::time::timeout(
+                                    std::time::Duration::from_secs(30),
+                                    provider.disconnect(),
+                                )
+                                .await;
+                                match disconnect_result {
+                                    Ok(Ok(Some(text))) => {
                                         let mut acc = accumulated.lock().unwrap_or_else(|e| e.into_inner());
                                         acc.push_str(&text);
                                         let current = acc.clone();
                                         drop(acc);
                                         let _ = app_handle.emit("stt:final", &current);
                                     }
-                                    Ok(None) => {}
-                                    Err(e) => {
+                                    Ok(Ok(None)) => {}
+                                    Ok(Err(e)) => {
                                         tracing::error!("STT disconnect error: {}", e);
                                         let _ = app_handle.emit("pipeline:error", format!("STT error: {e}"));
+                                    }
+                                    Err(_) => {
+                                        tracing::warn!("STT disconnect timed out after 30s");
                                     }
                                 }
                                 break;
@@ -554,7 +567,7 @@ impl PipelineHandle {
 
         // Wait for STT task to finish (handles both streaming and file-based providers)
         // Timeout after 120s to support long recordings
-        let stt_done = self.stt_done.clone();
+        let stt_done = self.stt_done.lock().unwrap_or_else(|e| e.into_inner()).clone();
         tokio::select! {
             _ = stt_done.notified() => {
                 tracing::debug!("STT task completed");
@@ -724,15 +737,20 @@ impl PipelineHandle {
     ) -> Result<()> {
         self.set_state(PipelineState::Outputting);
 
-        // On macOS, keyboard and clipboard-paste output both rely on CGEventPost
-        // (enigo). Without Accessibility permission the OS silently drops all
-        // synthetic events. Detect early and surface a clear error instead.
-        if !is_accessibility_trusted() {
-            anyhow::bail!(
-                "Accessibility permission is required to type text. \
-                 Please go to System Settings → Privacy & Security → Accessibility \
-                 and enable OpenTypeless."
-            );
+        #[cfg(target_os = "macos")]
+        if config.output_mode == "keyboard" && !is_accessibility_trusted() {
+            let text_copy = text.to_string();
+            let _ = tokio::task::spawn_blocking(move || {
+                arboard::Clipboard::new()
+                    .and_then(|mut cb| cb.set_text(text_copy))
+                    .ok()
+            })
+            .await;
+            let _ = self.app_handle.emit("pipeline:target_app", app_name);
+            let _ = self
+                .app_handle
+                .emit("pipeline:error", "pipeline.error.accessibilityNoPermission");
+            return Ok(());
         }
 
         let mode = if config.output_mode == "keyboard" {

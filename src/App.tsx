@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTauriEvents } from './hooks/useTauriEvents'
 import { useTheme } from './hooks/useTheme'
+import { useLanguage } from './hooks/useLanguage'
 import { useAppStore } from './stores/appStore'
 import { useAuthStore } from './stores/authStore'
 import { useRoute } from './lib/router'
@@ -19,6 +20,7 @@ import { ToastContainer } from './components/Toast'
 function CapsuleApp() {
   useTauriEvents()
   useTheme()
+  useLanguage()
 
   const setConfig = useAppStore((s) => s.setConfig)
 
@@ -38,6 +40,7 @@ function CapsuleApp() {
 function MainApp() {
   useTauriEvents()
   useTheme()
+  useLanguage()
 
   const onboardingCompleted = useAppStore((s) => s.onboardingCompleted)
   const setOnboardingCompleted = useAppStore((s) => s.setOnboardingCompleted)

@@ -1,9 +1,11 @@
 import { motion } from 'framer-motion'
 import { Cloud, Key, Mic, Bot, Sparkles, Infinity, Layers } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../../stores/appStore'
 import { spring } from '../../lib/animations'
 
 export function ModeSelectStep() {
+  const { t } = useTranslation()
   const onboardingMode = useAppStore((s) => s.onboardingMode)
   const setOnboardingMode = useAppStore((s) => s.setOnboardingMode)
 
@@ -29,16 +31,16 @@ export function ModeSelectStep() {
           </div>
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
-              <span className="text-[14px] font-medium text-text-primary">Cloud</span>
+              <span className="text-[14px] font-medium text-text-primary">{t('onboarding.modeCloud')}</span>
               <span className="text-[11px] text-accent font-medium bg-accent/10 px-1.5 py-0.5 rounded-full">
-                Recommended
+                {t('onboarding.modeCloudRecommended')}
               </span>
             </div>
-            <p className="text-[13px] text-text-secondary">Zero config, ready to go</p>
+            <p className="text-[13px] text-text-secondary">{t('onboarding.modeCloudDesc')}</p>
             <div className="flex flex-col gap-0.5">
-              <Detail icon={Mic} text="15 min voice" />
-              <Detail icon={Bot} text="100K AI tokens" />
-              <Detail icon={Sparkles} text="One-time free credit" />
+              <Detail icon={Mic} text={t('onboarding.modeCloudVoice')} />
+              <Detail icon={Bot} text={t('onboarding.modeCloudTokens')} />
+              <Detail icon={Sparkles} text={t('onboarding.modeCloudCredit')} />
             </div>
           </div>
         </div>
@@ -63,11 +65,11 @@ export function ModeSelectStep() {
             <Key size={18} />
           </div>
           <div className="space-y-1.5">
-            <span className="text-[14px] font-medium text-text-primary">Bring Your Own Key</span>
-            <p className="text-[13px] text-text-secondary">Use your own API keys</p>
+            <span className="text-[14px] font-medium text-text-primary">{t('onboarding.modeBYOK')}</span>
+            <p className="text-[13px] text-text-secondary">{t('onboarding.modeBYOKDesc')}</p>
             <div className="flex flex-col gap-0.5">
-              <Detail icon={Infinity} text="Unlimited usage" />
-              <Detail icon={Layers} text="12+ providers supported" />
+              <Detail icon={Infinity} text={t('onboarding.modeBYOKUnlimited')} />
+              <Detail icon={Layers} text={t('onboarding.modeBYOKProviders')} />
             </div>
           </div>
         </div>

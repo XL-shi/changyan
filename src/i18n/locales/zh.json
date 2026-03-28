@@ -72,7 +72,47 @@
     "llm": "LLM",
     "output": "输出",
     "releaseToStop": "松开停止录音",
-    "holdAndSay": "按住并说点什么"
+    "holdAndSay": "按住并说点什么",
+    "signInSubtitle": "登录以获取免费云端额度，或跳过使用自己的 API Key",
+    "chooseModeTitle": "选择使用方式",
+    "chooseModeSubtitle": "你想如何使用 OpenTypeless？",
+    "modeCloud": "云端模式",
+    "modeCloudRecommended": "推荐",
+    "modeCloudDesc": "无需配置，即刻可用",
+    "modeCloudVoice": "15 分钟语音",
+    "modeCloudTokens": "10 万 AI tokens",
+    "modeCloudCredit": "一次性免费额度",
+    "modeBYOK": "自带 API Key",
+    "modeBYOKDesc": "使用你自己的 API 密钥",
+    "modeBYOKUnlimited": "无限用量",
+    "modeBYOKProviders": "支持 12+ 服务商",
+    "signedInAs": "已登录为",
+    "freePlanDesc": "15 分钟语音 + 10 万 tokens",
+    "checkEmail": "查看你的邮箱",
+    "checkEmailDesc": "我们已向你的邮箱发送了验证链接，点击验证后回来登录。",
+    "sending": "发送中...",
+    "resendVerification": "重新发送验证邮件",
+    "verificationSent": "验证邮件已发送！",
+    "backToSignIn": "返回登录",
+    "orDivider": "或",
+    "capsuleOnDesktop": "语音胶囊已出现在桌面上",
+    "phaseIdle": "按下快捷键开始",
+    "phaseRecording": "录音中...",
+    "phaseTranscribing": "语音转文字中",
+    "phasePolishing": "AI 润色中",
+    "phaseComplete": "完成 — 已输入到你的应用",
+    "labelTranscribing": "转录",
+    "labelRaw": "原始",
+    "labelPolished": "润色后",
+    "labelResult": "结果",
+    "tipHotkeyHold": "随时说话",
+    "tipHotkeyToggle": "��始/停止录音",
+    "tipClickCapsule": "点击胶囊",
+    "tipClickCapsuleDesc": "开始录音",
+    "tipDrag": "拖动重新定位",
+    "tipDragDesc": "放置在屏幕任意位置",
+    "tipRightClick": "右键打开菜单",
+    "tipRightClickDesc": "设置、历史记录等"
   },
   "capsule": {
     "cancelRecording": "取消录音",
@@ -105,6 +145,11 @@
     "outputMode": "输出模式",
     "keyboardSimulation": "键盘模拟",
     "clipboardPaste": "剪贴板粘贴",
+    "accessibility": "辅助功能权限",
+    "accessibilityGranted": "权限已授予 ✓",
+    "accessibilityDesc": "键盘模拟与自动粘贴需要此权限",
+    "accessibilityGrant": "打开辅助功能设置",
+    "accessibilityRecheck": "重新检测",
     "other": "其他",
     "launchAtStartup": "开机启动",
     "startMinimized": "启动时最小化到托盘",
@@ -143,7 +188,8 @@
     "framework": "框架",
     "tauriReact": "Tauri v2 + React",
     "view": "查看",
-    "maxRecordingDuration": "最大录音时长"
+    "maxRecordingDuration": "最大录音时长",
+    "uiLanguage": "界面语言"
   },
   "dictionary": {
     "word": "词语",
@@ -224,6 +270,11 @@
     "oauthPendingDesc": "请在浏览器中完成登录，完成后将自动返回。",
     "oauthTimeout": "登录超时，请重试。",
     "cancel": "取消"
+  },
+  "pipeline": {
+    "error": {
+      "accessibilityNoPermission": "文字已复制到剪贴板。请在系统设置 → 辅助功能中开启 OpenTypeless 以启用自动粘贴。"
+    }
   },
   "error": {
     "somethingWentWrong": "出了点问题",

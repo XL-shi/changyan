@@ -1,8 +1,10 @@
 import { motion } from 'framer-motion'
 import { Check, Keyboard, MousePointerClick, GripHorizontal, MousePointer } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../../stores/appStore'
 
 export function DoneStep() {
+  const { t } = useTranslation()
   const config = useAppStore((s) => s.config)
 
   return (
@@ -24,9 +26,9 @@ export function DoneStep() {
       </motion.div>
 
       <div className="text-center">
-        <h2 className="text-[17px] font-semibold text-text-primary">All Set</h2>
+        <h2 className="text-[17px] font-semibold text-text-primary">{t('onboarding.allSet')}</h2>
         <p className="text-[13px] text-text-secondary mt-1">
-          The capsule is now on your desktop
+          {t('onboarding.capsuleOnDesktop')}
         </p>
       </div>
 
@@ -34,23 +36,23 @@ export function DoneStep() {
       <div className="w-full space-y-2">
         <Tip
           icon={Keyboard}
-          title={`${config.hotkey_mode === 'hold' ? 'Hold' : 'Press'} ${config.hotkey}`}
-          desc={config.hotkey_mode === 'hold' ? 'to talk anywhere' : 'to start/stop recording'}
+          title={`${config.hotkey_mode === 'hold' ? t('onboarding.hold') : t('onboarding.press')} ${config.hotkey}`}
+          desc={config.hotkey_mode === 'hold' ? t('onboarding.tipHotkeyHold') : t('onboarding.tipHotkeyToggle')}
         />
         <Tip
           icon={MousePointerClick}
-          title="Click the capsule"
-          desc="to start recording"
+          title={t('onboarding.tipClickCapsule')}
+          desc={t('onboarding.tipClickCapsuleDesc')}
         />
         <Tip
           icon={GripHorizontal}
-          title="Drag to reposition"
-          desc="place it anywhere on screen"
+          title={t('onboarding.tipDrag')}
+          desc={t('onboarding.tipDragDesc')}
         />
         <Tip
           icon={MousePointer}
-          title="Right-click for menu"
-          desc="settings, history, and more"
+          title={t('onboarding.tipRightClick')}
+          desc={t('onboarding.tipRightClickDesc')}
         />
       </div>
     </div>

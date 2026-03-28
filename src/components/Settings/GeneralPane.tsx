@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
+import i18n from '../../i18n'
 import { useAppStore } from '../../stores/appStore'
-import type { HotkeyMode, OutputMode } from '../../stores/appStore'
-import { updateHotkey, pauseHotkey, resumeHotkey } from '../../lib/tauri'
+import type { HotkeyMode, OutputMode, UiLanguage } from '../../stores/appStore'
+import { updateHotkey, pauseHotkey, resumeHotkey, requestAccessibilityPermission, openAccessibilitySettings } from '../../lib/tauri'
 import { SegmentedControl } from './shared/SegmentedControl'
 import { Toggle } from './shared/Toggle'
 
@@ -183,6 +184,18 @@ export function GeneralPane() {
   const config = useAppStore((s) => s.config)
   const updateConfig = useAppStore((s) => s.updateConfig)
   const { t } = useTranslation()
+  const isMac = navigator.platform.toLowerCase().includes('mac')
+  const [accessibilityGranted, setAccessibilityGranted] = useState<boolean | null>(null)
+
+  const handleCheckAccessibility = useCallback(() => {
+    requestAccessibilityPermission().then((granted) => {
+      setAccessibilityGranted(granted)
+    })
+  }, [])
+
+  const handleOpenAccessibilitySettings = useCallback(() => {
+    openAccessibilitySettings()
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -210,6 +223,34 @@ export function GeneralPane() {
           onChange={(v) => updateConfig({ output_mode: v as OutputMode })}
         />
       </Section>
+
+      {isMac && (
+        <Section title={t('settings.accessibility', 'Accessibility Permission')}>
+          <div className="flex items-center justify-between">
+            <p className="text-[13px] text-text-secondary">
+              {accessibilityGranted === true
+                ? t('settings.accessibilityGranted', 'Permission granted ✓')
+                : t('settings.accessibilityDesc', 'Required for keyboard auto-paste')}
+            </p>
+            <div className="flex items-center gap-2">
+              {accessibilityGranted !== true && (
+                <button
+                  onClick={handleOpenAccessibilitySettings}
+                  className="px-3 py-1.5 rounded-lg text-[13px] bg-surface-secondary text-text-primary hover:opacity-80 transition-opacity"
+                >
+                  {t('settings.accessibilityGrant', 'Open Settings')}
+                </button>
+              )}
+              <button
+                onClick={handleCheckAccessibility}
+                className="px-3 py-1.5 rounded-lg text-[13px] bg-accent text-white hover:opacity-90 transition-opacity"
+              >
+                {t('settings.accessibilityRecheck', 'Check Permission')}
+              </button>
+            </div>
+          </div>
+        </Section>
+      )}
 
       <Section title={t('settings.maxRecordingDuration', 'Max Recording Duration')}>
         <div className="flex items-center gap-3">
@@ -242,6 +283,27 @@ export function GeneralPane() {
               label={t('settings.startMinimized')}
             />
           )}
+        </div>
+      </Section>
+
+      <Section title={t('settings.uiLanguage')}>
+        <div className="flex gap-2">
+          {([{ value: 'en' as UiLanguage, label: 'English' }, { value: 'zh' as UiLanguage, label: '中文' }]).map((lang) => (
+            <button
+              key={lang.value}
+              onClick={() => {
+                updateConfig({ ui_language: lang.value })
+                i18n.changeLanguage(lang.value)
+              }}
+              className={`flex-1 px-4 py-2.5 rounded-[10px] text-[13px] border cursor-pointer transition-all ${
+                config.ui_language === lang.value
+                  ? 'bg-accent/10 border-accent text-accent font-medium'
+                  : 'bg-bg-secondary border-border text-text-primary hover:border-text-tertiary'
+              }`}
+            >
+              {lang.label}
+            </button>
+          ))}
         </div>
       </Section>
     </div>

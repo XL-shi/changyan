@@ -1,0 +1,44 @@
+#!/bin/bash
+# Cargo runner: wrap binary in a minimal .app bundle, sign it, then exec.
+# This ensures macOS TCC stores Accessibility permission by bundle ID,
+# which is stable across rebuilds.
+BINARY="$1"
+shift
+
+CERT="OpenTypeless Dev"
+BUNDLE_ID="com.opentypeless.app"
+APP_BUNDLE="$(cd "$(dirname "$BINARY")" && pwd)/OpenTypeless.app"
+APP_BINARY="$APP_BUNDLE/Contents/MacOS/opentypeless"
+
+# Create .app bundle structure
+mkdir -p "$APP_BUNDLE/Contents/MacOS"
+
+# Write Info.plist (only once)
+cat > "$APP_BUNDLE/Contents/Info.plist" << 'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleExecutable</key>
+  <string>opentypeless</string>
+  <key>CFBundleIdentifier</key>
+  <string>com.opentypeless.app</string>
+  <key>CFBundleName</key>
+  <string>OpenTypeless</string>
+  <key>CFBundleVersion</key>
+  <string>0.1.0</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+</dict>
+</plist>
+PLIST
+
+# Copy binary into bundle
+cp "$BINARY" "$APP_BINARY"
+
+# Sign the bundle (binary inside inherits bundle identity)
+codesign --force --sign "$CERT" "$APP_BUNDLE" >/dev/null 2>&1 && \
+  echo "✓ Signed OpenTypeless.app before launch" >&2
+
+# Launch from within the .app so macOS uses CFBundleIdentifier for TCC
+exec "$APP_BINARY" "$@"

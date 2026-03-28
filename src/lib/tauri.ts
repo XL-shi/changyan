@@ -116,3 +116,12 @@ export async function saveOnboardingCompleted(): Promise<void> {
     console.error('Failed to persist onboarding state:', e)
   }
 }
+
+
+export async function requestAccessibilityPermission(): Promise<boolean> {
+  return invoke('request_accessibility_permission')
+}
+
+export async function openAccessibilitySettings(): Promise<void> {
+  return invoke('open_accessibility_settings')
+}

@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../../stores/appStore'
 import { useAuthStore } from '../../stores/authStore'
 import { saveOnboardingCompleted, updateConfig as saveConfig } from '../../lib/tauri'
@@ -15,6 +16,7 @@ import { slideRight } from '../../lib/animations'
 const TOTAL_STEPS = 7
 
 export function Onboarding() {
+  const { t } = useTranslation()
   const step = useAppStore((s) => s.onboardingStep)
   const setStep = useAppStore((s) => s.setOnboardingStep)
   const setOnboardingCompleted = useAppStore((s) => s.setOnboardingCompleted)
@@ -48,30 +50,30 @@ export function Onboarding() {
 
   const titles = [
     {
-      title: 'Welcome to OpenTypeless',
-      subtitle: 'A few quick steps to get started with voice input',
+      title: t('onboarding.welcomeTitle'),
+      subtitle: t('onboarding.welcomeSubtitle'),
     },
     {
-      title: 'Sign In',
-      subtitle: 'Sign in to get free cloud minutes, or skip to use your own API keys',
+      title: t('account.signIn'),
+      subtitle: t('onboarding.signInSubtitle'),
     },
     {
-      title: 'Choose Your Mode',
-      subtitle: 'How would you like to use OpenTypeless?',
+      title: t('onboarding.chooseModeTitle'),
+      subtitle: t('onboarding.chooseModeSubtitle'),
     },
     {
-      title: 'Speech Recognition',
-      subtitle: 'Configure your ASR service to convert speech to text',
+      title: t('onboarding.speechRecognition'),
+      subtitle: t('onboarding.speechRecognitionDesc'),
     },
     {
-      title: 'AI Polish',
-      subtitle: 'Configure an LLM service to polish transcribed text',
+      title: t('onboarding.aiPolish'),
+      subtitle: t('onboarding.aiPolishDesc'),
     },
     {
-      title: 'How It Works',
-      subtitle: 'See the full pipeline in action — from voice to polished text',
+      title: t('onboarding.tryItOut'),
+      subtitle: t('onboarding.tryItOutDesc'),
     },
-    { title: 'Setup Complete', subtitle: undefined },
+    { title: t('onboarding.setupComplete'), subtitle: undefined },
   ]
 
   const config = useAppStore((s) => s.config)
@@ -154,7 +156,7 @@ export function Onboarding() {
       subtitle={titles[step].subtitle}
       canNext={canNext}
       canBack={step > 0}
-      nextLabel={step === TOTAL_STEPS - 1 ? 'Get Started' : 'Next'}
+      nextLabel={step === TOTAL_STEPS - 1 ? t('onboarding.getStarted') : t('onboarding.next')}
       onNext={handleNext}
       onBack={handleBack}
       onSkip={handleSkip}
