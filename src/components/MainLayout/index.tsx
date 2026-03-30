@@ -1,4 +1,4 @@
-import { Home, Settings, History, Crown, CircleUser } from 'lucide-react'
+import { Home, Settings, History, /*Crown,*/ CircleUser } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { spring } from '../../lib/animations'
@@ -19,9 +19,9 @@ interface Props {
 
 export function MainLayout({ children }: Props) {
   const { route, navigate } = useRoute()
-  const { plan } = useAuthStore()
+  const { /*plan*/ } = useAuthStore()
   const { t } = useTranslation()
-  const isPro = plan === 'pro'
+  // const isPro = plan === 'pro'
 
   return (
     <div className="w-full h-full flex bg-bg-primary text-text-primary">
@@ -68,8 +68,8 @@ export function MainLayout({ children }: Props) {
             )
           })}
 
-          {/* Upgrade / Pro nav item */}
-          {(() => {
+          {/* Upgrade / Pro nav item — temporarily hidden */}
+          {/*(() => {
             const active = route === 'upgrade'
             return (
               <motion.button
@@ -98,7 +98,7 @@ export function MainLayout({ children }: Props) {
                 </span>
               </motion.button>
             )
-          })()}
+          })()*/}
         </nav>
 
         {/* Bottom: Account */}
