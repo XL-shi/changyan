@@ -51,12 +51,12 @@ async function handleDeepLinkUrl(rawUrl: string) {
   }
 
   // Only accept our custom scheme
-  if (url.protocol !== 'opentypeless:') return
+  if (url.protocol !== 'changyan:') return
 
   const path = url.hostname + url.pathname
   const params = url.searchParams
 
-  // opentypeless://auth/callback?token=xxx&state=yyy
+  // changyan://auth/callback?token=xxx&state=yyy
   if (path === 'auth/callback' || path === 'auth/callback/') {
     const token = params.get('token')
     const state = params.get('state')
@@ -79,7 +79,7 @@ async function handleDeepLinkUrl(rawUrl: string) {
     return
   }
 
-  // opentypeless://checkout/success
+  // changyan://checkout/success
   if (path === 'checkout/success' || path === 'checkout/success/') {
     await useAuthStore.getState().refreshSubscription()
     window.location.hash = '#/upgrade'

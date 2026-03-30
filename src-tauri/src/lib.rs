@@ -84,7 +84,7 @@ fn build_tray_menu(
     let history = MenuItem::with_id(app, "history", "History", true, None::<&str>)?;
     let account = MenuItem::with_id(app, "account", "Account", true, None::<&str>)?;
     let sep3 = PredefinedMenuItem::separator(app)?;
-    let about = MenuItem::with_id(app, "about", "About OpenTypeless", true, None::<&str>)?;
+    let about = MenuItem::with_id(app, "about", "About ChangYan", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
 
     let menu = Menu::with_items(
@@ -1031,7 +1031,7 @@ pub fn run() {
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::from_default_env().add_directive(
-                "opentypeless=debug"
+                "changyan=debug"
                     .parse()
                     .expect("static directive is valid"),
             ),
@@ -1138,7 +1138,7 @@ pub fn run() {
                         .clone(),
                 )
                 .menu(&tray_menu)
-                .tooltip("OpenTypeless")
+                .tooltip("ChangYan")
                 .on_menu_event(move |app, event| match event.id.as_ref() {
                     "quit" => {
                         app.exit(0);
@@ -1301,7 +1301,7 @@ pub fn run() {
                 }
             }
 
-            tracing::info!("OpenTypeless started");
+            tracing::info!("ChangYan started");
 
             // P1-2: Pre-warm HTTP connection pool in background
             let warm_handle = app_handle.clone();

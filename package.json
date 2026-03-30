@@ -1,5 +1,5 @@
 {
-  "name": "opentypeless",
+  "name": "changyan",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -20,7 +20,7 @@
   "bugs": {
     "url": "https://github.com/tover0314-w/opentypeless/issues"
   },
-  "author": "OpenTypeless Contributors",
+  "author": "ChangYan Contributors",
   "license": "MIT",
   "scripts": {
     "dev": "vite",

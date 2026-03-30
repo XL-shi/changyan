@@ -2,7 +2,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-CERT="OpenTypeless Dev"
+CERT="ChangYan Dev"
 RUNNER="$SCRIPT_DIR/src-tauri/scripts/sign-and-run"
 
 # Use the runner hook: cargo calls it AFTER build, BEFORE launch.

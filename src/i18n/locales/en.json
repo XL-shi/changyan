@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "OpenTypeless",
+    "name": "ChangYan",
     "tagline": "AI Voice Input",
     "loading": "Loading...",
     "failedToLoad": "Failed to load application data.",
@@ -15,7 +15,7 @@
     "pro": "Pro"
   },
   "home": {
-    "welcome": "Welcome to OpenTypeless",
+    "welcome": "Welcome to ChangYan",
     "description": "Hold {{hotkey}} to start voice recording. Your speech will be transcribed and optionally polished by AI.",
     "totalRecordings": "Total Recordings",
     "today": "Today",
@@ -31,7 +31,7 @@
     "outputMode": "Output Mode"
   },
   "onboarding": {
-    "welcomeTitle": "Welcome to OpenTypeless",
+    "welcomeTitle": "Welcome to ChangYan",
     "welcomeSubtitle": "A few quick steps to get started with voice input",
     "speechRecognition": "Speech Recognition",
     "speechRecognitionDesc": "Configure your ASR service to convert speech to text",
@@ -75,7 +75,7 @@
     "holdAndSay": "Hold and say something",
     "signInSubtitle": "Sign in to get free cloud minutes, or skip to use your own API keys",
     "chooseModeTitle": "Choose Your Mode",
-    "chooseModeSubtitle": "How would you like to use OpenTypeless?",
+    "chooseModeSubtitle": "How would you like to use ChangYan?",
     "modeCloud": "Cloud",
     "modeCloudRecommended": "Recommended",
     "modeCloudDesc": "Zero config, ready to go",
@@ -169,7 +169,7 @@
     "test": "Test",
     "connectionSuccess": "Connection successful",
     "connectionFailed": "Connection failed",
-    "storedLocally": "Stored locally on your device. Never sent to OpenTypeless servers.",
+    "storedLocally": "Stored locally on your device. Never sent to ChangYan servers.",
     "sttLanguage": "Language",
     "model": "Model",
     "fetchModels": "Fetch available models",
@@ -273,7 +273,7 @@
   },
   "pipeline": {
     "error": {
-      "accessibilityNoPermission": "Text copied to clipboard. Enable OpenTypeless in System Settings → Accessibility for auto-paste."
+      "accessibilityNoPermission": "Text copied to clipboard. Enable ChangYan in System Settings → Accessibility for auto-paste."
     }
   },
   "error": {

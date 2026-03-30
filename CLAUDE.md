@@ -11,7 +11,7 @@
 
 ## Project Overview
 
-**OpenTypeless** — AI-powered speech-to-text desktop app built with Tauri 2 (React + Rust).
+**ChangYan** — AI-powered speech-to-text desktop app built with Tauri 2 (React + Rust).
 
 Core flow: Microphone → STT provider → LLM polish → keyboard/clipboard output.
 
@@ -115,7 +115,7 @@ SQLite (`opentypeless.db`) via rusqlite — migrations in `src-tauri/migrations/
 ## Important Notes
 
 - The capsule window is a separate Tauri window (`#capsule` hash route), not a React route
-- API keys are stored locally and never sent to the OpenTypeless cloud in BYOK mode
+- API keys are stored locally and never sent to the ChangYan cloud in BYOK mode
 - macOS: keys encrypted via Keychain through tauri-plugin-store
-- Deep link auth flow: `opentypeless://callback?token=...`
+- Deep link auth flow: `changyan://callback?token=...`
 - Always check that both frontend and Rust compile cleanly before submitting changes

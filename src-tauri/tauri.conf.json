@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "OpenTypeless",
+  "productName": "ChangYan",
   "version": "0.1.0",
-  "identifier": "com.opentypeless.app",
+  "identifier": "com.changyan.app",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "OpenTypeless",
+        "title": "ChangYan",
         "width": 900,
         "height": 700,
         "minWidth": 720,
@@ -28,7 +28,7 @@
       },
       {
         "label": "capsule",
-        "title": "OpenTypeless Capsule",
+        "title": "ChangYan Capsule",
         "width": 80,
         "height": 80,
         "resizable": false,
@@ -48,7 +48,7 @@
   "plugins": {
     "deep-link": {
       "desktop": {
-        "schemes": ["opentypeless"]
+        "schemes": ["changyan"]
       }
     }
   },
