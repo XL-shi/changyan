@@ -20,9 +20,9 @@ export function HomePage() {
   const todayCount = history.filter((h) => h.created_at.startsWith(today)).length
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6">
       {/* Welcome */}
-      <div className="rounded-[18px] p-5 jelly-card">
+      <div className="rounded-[18px] p-5 jelly-card mb-2.5">
         <div className="flex items-center gap-3 mb-2">
           <div
             className="w-9 h-9 rounded-[10px] flex items-center justify-center"
@@ -40,7 +40,7 @@ export function HomePage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 mb-2.5">
         <div className="rounded-[18px] p-4 jelly-card">
           <p className="text-[11px] text-text-tertiary uppercase tracking-wider mb-1">
             {t('home.totalRecordings')}
@@ -57,7 +57,7 @@ export function HomePage() {
 
       {/* Plan / Quota summary */}
       {user && (
-        <div className="rounded-[18px] p-5 jelly-card">
+        <div className="rounded-[18px] p-5 jelly-card mb-2.5">
           {isPro ? (
             <>
               <div className="flex items-center gap-2 mb-3">
@@ -116,24 +116,24 @@ export function HomePage() {
       )}
 
       {/* Current config */}
-      <div className="rounded-[18px] p-5 jelly-card">
+      <div className="rounded-[18px] p-5 jelly-card mb-2.5">
         <h3 className="text-[13px] font-medium mb-3">{t('home.currentConfig')}</h3>
-        <div className="space-y-2 text-[13px]">
-          <div className="flex justify-between">
+        <div className="text-[13px]">
+          <div className="flex justify-between px-3 py-2.5 rounded-[8px] bg-bg-primary mb-2">
             <span className="text-text-secondary">{t('home.sttProvider')}</span>
             <span className="text-text-primary font-medium">{config.stt_provider}</span>
           </div>
-          <div className="flex justify-between">
+          <div className="flex justify-between px-3 py-2.5 rounded-[8px] bg-bg-primary mb-2">
             <span className="text-text-secondary">{t('home.llmProvider')}</span>
             <span className="text-text-primary font-medium">{config.llm_provider}</span>
           </div>
-          <div className="flex justify-between">
+          <div className="flex justify-between px-3 py-2.5 rounded-[8px] bg-bg-primary mb-2">
             <span className="text-text-secondary">{t('home.aiPolish')}</span>
             <span className="text-text-primary font-medium">
               {config.polish_enabled ? t('home.enabled') : t('home.disabled')}
             </span>
           </div>
-          <div className="flex justify-between">
+          <div className="flex justify-between px-3 py-2.5 rounded-[8px] bg-bg-primary">
             <span className="text-text-secondary">{t('home.outputMode')}</span>
             <span className="text-text-primary font-medium">{config.output_mode}</span>
           </div>

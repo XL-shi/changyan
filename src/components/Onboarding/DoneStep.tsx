@@ -33,7 +33,7 @@ export function DoneStep() {
       </div>
 
       {/* Usage tips */}
-      <div className="w-full space-y-2">
+      <div className="w-full space-y-3">
         <Tip
           icon={Keyboard}
           title={`${config.hotkey_mode === 'hold' ? t('onboarding.hold') : t('onboarding.press')} ${config.hotkey}`}
@@ -69,7 +69,7 @@ function Tip({
   desc: string
 }) {
   return (
-    <div className="flex items-center gap-3 px-3 py-2.5 bg-bg-secondary rounded-[10px]">
+    <div className="flex items-center gap-3 px-4 py-3 bg-bg-secondary rounded-[10px]">
       <div className="p-1.5 rounded-[8px] bg-bg-tertiary text-text-tertiary shrink-0">
         <Icon size={14} />
       </div>

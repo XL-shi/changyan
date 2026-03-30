@@ -6,9 +6,9 @@ BINARY="$1"
 shift
 
 CERT="OpenTypeless Dev"
-BUNDLE_ID="com.opentypeless.app"
-APP_BUNDLE="$(cd "$(dirname "$BINARY")" && pwd)/OpenTypeless.app"
-APP_BINARY="$APP_BUNDLE/Contents/MacOS/opentypeless"
+BUNDLE_ID="com.changyan.app"
+APP_BUNDLE="$(cd "$(dirname "$BINARY")" && pwd)/ChangYan.app"
+APP_BINARY="$APP_BUNDLE/Contents/MacOS/changyan"
 
 # Create .app bundle structure
 mkdir -p "$APP_BUNDLE/Contents/MacOS"
@@ -20,11 +20,11 @@ cat > "$APP_BUNDLE/Contents/Info.plist" << 'PLIST'
 <plist version="1.0">
 <dict>
   <key>CFBundleExecutable</key>
-  <string>opentypeless</string>
+  <string>changyan</string>
   <key>CFBundleIdentifier</key>
-  <string>com.opentypeless.app</string>
+  <string>com.changyan.app</string>
   <key>CFBundleName</key>
-  <string>OpenTypeless</string>
+  <string>ChangYan</string>
   <key>CFBundleVersion</key>
   <string>0.1.0</string>
   <key>CFBundlePackageType</key>
@@ -38,7 +38,7 @@ cp "$BINARY" "$APP_BINARY"
 
 # Sign the bundle (binary inside inherits bundle identity)
 codesign --force --sign "$CERT" "$APP_BUNDLE" >/dev/null 2>&1 && \
-  echo "✓ Signed OpenTypeless.app before launch" >&2
+  echo "✓ Signed ChangYan.app before launch" >&2
 
 # Launch from within the .app so macOS uses CFBundleIdentifier for TCC
 exec "$APP_BINARY" "$@"

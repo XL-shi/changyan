@@ -313,10 +313,12 @@ export function GeneralPane() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <h3 className="text-[11px] font-medium text-text-tertiary uppercase tracking-wider mb-2.5">
+      <h3 className="text-[11px] font-medium text-text-tertiary uppercase tracking-wider mb-2">
         {title}
       </h3>
-      {children}
+      <div className="bg-bg-secondary border border-border rounded-[12px] p-4">
+        {children}
+      </div>
     </div>
   )
 }

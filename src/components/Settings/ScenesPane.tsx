@@ -130,7 +130,7 @@ export function ScenesPane() {
       )}
 
       {/* Scene list */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         {filtered.map((scene) => {
           const locked = isLocked(scene)
           const expanded = expandedId === scene.id

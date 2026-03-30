@@ -76,7 +76,7 @@ export function LlmPane() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <FormField label={t('settings.provider')}>
         <select
           value={config.llm_provider}

@@ -1,6 +1,9 @@
 @import 'tailwindcss';
 
 @theme {
+  /* Spacing scale — required for space-y-*, space-x-* utilities in Tailwind v4 */
+  --spacing: 0.25rem;
+
   /* ── Apple Black & White ── */
 
   /* Backgrounds — apple.com palette */
