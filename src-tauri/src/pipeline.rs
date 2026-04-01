@@ -157,11 +157,16 @@ impl PipelineHandle {
         self.state.store(new_state.as_u8(), Ordering::SeqCst);
         let _ = self.app_handle.emit("pipeline:state", new_state);
 
-        // Raise capsule immediately when recording starts — do this on the Rust side
-        // (before the frontend round-trip) so the window is at the correct level
-        // in fullscreen spaces the moment recording begins.
+        // Show/hide capsule window based on state
         if new_state == PipelineState::Recording {
+            // Raise capsule immediately when recording starts — do this on the Rust side
+            // (before the frontend round-trip) so the window is at the correct level
+            // in fullscreen spaces the moment recording begins.
             crate::raise_capsule_window(&self.app_handle);
+        } else if new_state == PipelineState::Idle {
+            if let Some(capsule) = self.app_handle.get_webview_window("capsule") {
+                let _ = capsule.hide();
+            }
         }
 
         // Update tray tooltip + menu to reflect pipeline state
@@ -669,9 +674,6 @@ impl PipelineHandle {
             .to_string();
 
         if raw_text.is_empty() {
-            let _ = self
-                .app_handle
-                .emit("pipeline:error", "No speech detected. Please try again.");
             self.set_state(PipelineState::Idle);
             return Ok(());
         }

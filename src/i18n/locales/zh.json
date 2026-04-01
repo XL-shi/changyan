@@ -16,7 +16,7 @@
   },
   "home": {
     "welcome": "欢迎使用 ChangYan",
-    "description": "按住 {{hotkey}} 开始语音录制。语音将被转录并可选择由 AI 润色。",
+    "description": "按下 {{hotkey}} 开启录音，再次按下即可结束。开口即转文字，声落成文。",
     "totalRecordings": "总录音数",
     "today": "今日",
     "proPlan": "Pro 计划",

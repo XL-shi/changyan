@@ -50,10 +50,13 @@ export function Waveform() {
           ref={(el) => {
             barsRef.current[i] = el
           }}
-          className="w-[3px] rounded-full bg-white/90"
           style={{
+            width: '3px',
             height: `${MIN_HEIGHT}px`,
-            opacity: 0.5,
+            background: 'rgba(255,255,255,0.9)',
+            borderRadius: '9999px',
+            opacity: 0.6,
+            flexShrink: 0,
             transition: 'height 75ms ease-out, opacity 75ms ease-out',
           }}
         />

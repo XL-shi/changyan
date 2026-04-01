@@ -75,29 +75,15 @@ export function useCapsuleResize() {
           await win.setSize(new LogicalSize(windowWidth, windowHeight)).catch(() => {})
           try {
             const monitor = await currentMonitor()
-            console.log('[Capsule] currentMonitor:', monitor
-              ? `${monitor.size.width}x${monitor.size.height} @${monitor.scaleFactor}x pos=(${monitor.position.x},${monitor.position.y})`
-              : 'null')
             if (monitor) {
               const sw = monitor.size.width / monitor.scaleFactor
               const sh = monitor.size.height / monitor.scaleFactor
               const x = Math.round(sw / 2 - windowWidth / 2)
               const y = Math.round(sh - windowHeight - 80)
-              console.log(`[Capsule] initial position: x=${x} y=${y} size=${windowWidth}x${windowHeight}`)
               await win.setPosition(new LogicalPosition(x, y)).catch(() => {})
             }
-            const { invoke } = await import('@tauri-apps/api/core')
-            console.log('[Capsule] invoking bring_capsule_to_front (first mount)')
-            await invoke('bring_capsule_to_front').catch(() => win.show().catch(() => {}))
-            const pos = await win.outerPosition().catch(() => null)
-            const sz = await win.outerSize().catch(() => null)
-            console.log(`[Capsule] after show: outerPos=${JSON.stringify(pos)} outerSize=${JSON.stringify(sz)}`)
-            invoke<string>('debug_capsule_window').then((info) => {
-              console.log('[Capsule] native state:', info)
-            }).catch(() => {})
           } catch (e) {
             console.warn('[Capsule] monitor error:', e)
-            await win.show().catch(() => {})
           }
           initialized.current = true
           prevWindowSize.current = { width: windowWidth, height: windowHeight }
@@ -128,10 +114,11 @@ export function useCapsuleResize() {
 
         prevWindowSize.current = { width: windowWidth, height: windowHeight }
 
-        import('@tauri-apps/api/core').then(({ invoke }) => {
-          console.log(`[Capsule] invoking bring_capsule_to_front (state=${pipelineState})`)
-          invoke('bring_capsule_to_front').catch(() => {})
-        }).catch(() => {})
+        if (pipelineState !== 'idle') {
+          import('@tauri-apps/api/core').then(({ invoke }) => {
+            invoke('bring_capsule_to_front').catch(() => {})
+          }).catch(() => {})
+        }
 
         if (contextMenuOpen) {
           setContextMenuReady(true)

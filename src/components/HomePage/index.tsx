@@ -34,7 +34,7 @@ export function HomePage() {
           </div>
           <h2 className="text-[17px] font-semibold">{t('home.welcome')}</h2>
         </div>
-        <p className="text-[13px] text-text-secondary leading-relaxed">
+        <p className="text-[14px] text-text-secondary leading-relaxed">
           {t('home.description', { hotkey: config.hotkey })}
         </p>
       </div>

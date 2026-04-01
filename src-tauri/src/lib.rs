@@ -284,6 +284,15 @@ unsafe fn cgs_move_to_active_space(ns_window: &objc2_app_kit::NSWindow) {
 pub(crate) fn raise_capsule_window(app: &tauri::AppHandle) {
     let app2 = app.clone();
     app.run_on_main_thread(move || {
+        // Guard: don't show the capsule if the pipeline has already returned to idle.
+        // This prevents a race where a queued raise executes after hide().
+        if let Some(pipeline) = app2.try_state::<crate::pipeline::PipelineHandle>() {
+            if pipeline.current_state() == crate::pipeline::PipelineState::Idle {
+                tracing::info!("[Capsule] raise skipped — pipeline is idle");
+                return;
+            }
+        }
+
         use objc2_app_kit::{NSScreenSaverWindowLevel, NSWindow, NSWindowCollectionBehavior};
         let Some(capsule) = app2.get_webview_window("capsule") else { return };
         let Ok(ns_ptr) = capsule.ns_window() else { return };
@@ -297,10 +306,6 @@ pub(crate) fn raise_capsule_window(app: &tauri::AppHandle) {
                 "[Capsule] raise BEFORE: level={} behavior={:?} isVisible={} isOnActiveSpace={}",
                 before_level, before_behavior, is_visible, is_on_active_space
             );
-            // CanJoinAllSpaces: appears in every space including fullscreen spaces (works
-            // because the window was converted to an NSPanel with floatingPanel=true).
-            // FullScreenAuxiliary: renders alongside a fullscreen app.
-            // IgnoresCycle: exclude from Cmd+` cycling.
             let behavior = NSWindowCollectionBehavior::CanJoinAllSpaces
                 | NSWindowCollectionBehavior::FullScreenAuxiliary
                 | NSWindowCollectionBehavior::IgnoresCycle;
@@ -341,6 +346,16 @@ fn register_space_observer(app: &tauri::App) {
         let block = RcBlock::new(
             move |_: std::ptr::NonNull<objc2_foundation::NSNotification>| {
                 tracing::info!("[Capsule] NSWorkspaceActiveSpaceDidChangeNotification fired");
+
+                // Only re-raise capsule when pipeline is active (not idle).
+                // Otherwise the hidden capsule would flash into view on every space switch.
+                if let Some(pipeline) = app_h.try_state::<crate::pipeline::PipelineHandle>() {
+                    if pipeline.current_state() == crate::pipeline::PipelineState::Idle {
+                        tracing::info!("[Capsule] space-observer: pipeline idle, skipping raise");
+                        return;
+                    }
+                }
+
                 if let Some(capsule) = app_h.get_webview_window("capsule") {
                     if let Ok(ns_ptr) = capsule.ns_window() {
                         let ns_window = &*(ns_ptr as *const NSWindow);
@@ -1758,6 +1773,10 @@ pub fn run() {
                             NSScreenSaverWindowLevel,
                             actual_behavior,
                         );
+
+                        // Ensure capsule stays hidden after setup. The CGS calls above
+                        // may implicitly make the window visible on some macOS versions.
+                        ns_window.orderOut(None);
                     }
                 } else {
                     tracing::warn!("[Capsule] ns_window() failed — cannot set level/behavior");

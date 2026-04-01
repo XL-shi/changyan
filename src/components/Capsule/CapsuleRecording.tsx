@@ -34,7 +34,12 @@ export function CapsuleRecording() {
   }
 
   return (
-    <motion.div className="relative z-10 flex items-center justify-between h-9 px-3 w-[200px]" initial={false}>
+    <motion.div
+      className="relative z-10 flex items-center gap-2 h-9 px-3"
+      initial={false}
+      onPointerDown={(e) => e.stopPropagation()}
+      onPointerUp={(e) => e.stopPropagation()}
+    >
       <motion.button
         onClick={handleCancel}
         aria-label={t('capsule.cancelRecording', 'Cancel recording')}

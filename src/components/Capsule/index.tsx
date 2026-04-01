@@ -147,11 +147,10 @@ export function Capsule() {
             className="pointer-events-none"
           >
             <span
-              className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium text-white/90 whitespace-nowrap"
+              className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap"
               style={{
-                background: 'rgba(28,28,30,0.82)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
+                color: '#ffffff',
+                background: '#000000',
               }}
             >
               {toastMessage}
