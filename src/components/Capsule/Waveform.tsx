@@ -2,9 +2,9 @@ import { useEffect, useRef } from 'react'
 import { useReducedMotion } from 'framer-motion'
 import { useAppStore } from '../../stores/appStore'
 
-const BAR_COUNT = 7
+const BAR_COUNT = 9
 const MIN_HEIGHT = 3
-const MAX_HEIGHT = 16
+const MAX_HEIGHT = 18
 
 export function Waveform() {
   const barsRef = useRef<(HTMLDivElement | null)[]>([])
@@ -24,12 +24,14 @@ export function Waveform() {
 
     const animate = () => {
       const volume = useAppStore.getState().audioVolume
+      // Use a stronger sine wave so bars are visibly animated even at near-zero volume.
+      // Each bar gets its own phase offset for a natural ripple effect.
       barsRef.current.forEach((bar, i) => {
         if (!bar) return
-        const offset = Math.sin(Date.now() / 200 + i * 0.9) * 0.15
-        const normalized = Math.max(0, Math.min(1, volume + offset))
+        const wave = Math.sin(Date.now() / 160 + i * 1.1) * 0.35
+        const normalized = Math.max(0.08, Math.min(1, volume + wave))
         const height = MIN_HEIGHT + (MAX_HEIGHT - MIN_HEIGHT) * normalized
-        const opacity = Math.max(0.5, normalized)
+        const opacity = 0.6 + normalized * 0.4
         bar.style.height = `${height}px`
         bar.style.opacity = `${opacity}`
       })
@@ -48,7 +50,7 @@ export function Waveform() {
           ref={(el) => {
             barsRef.current[i] = el
           }}
-          className="w-[2px] rounded-full bg-white/80"
+          className="w-[3px] rounded-full bg-white/90"
           style={{
             height: `${MIN_HEIGHT}px`,
             opacity: 0.5,

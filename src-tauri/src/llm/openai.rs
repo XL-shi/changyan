@@ -46,6 +46,7 @@ impl LlmProvider for OpenAiProvider {
             req.translate_enabled,
             &req.target_lang,
             has_selected_text,
+            &req.style_examples,
         );
 
         let mut messages = vec![serde_json::json!({ "role": "system", "content": system_prompt })];

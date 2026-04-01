@@ -1,19 +1,29 @@
 import { motion, useReducedMotion } from 'framer-motion'
 import { Loader2, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { forceIdle } from '../../lib/tauri'
 import { useAppStore } from '../../stores/appStore'
 
 export function CapsuleProcessing() {
+  const { t } = useTranslation()
   const partialTranscript = useAppStore((s) => s.partialTranscript)
   const resetRecording = useAppStore((s) => s.resetRecording)
   const setPipelineState = useAppStore((s) => s.setPipelineState)
+  const setCapsuleToast = useAppStore((s) => s.setCapsuleToast)
   const reduced = useReducedMotion()
 
-  const displayText = partialTranscript || 'Transcribing...'
+  const displayText = partialTranscript || t('capsule.transcribing', 'Transcribing...')
 
-  const handleCancel = (e: React.MouseEvent) => {
+  const handleCancel = async (e: React.MouseEvent) => {
     e.stopPropagation()
+    try {
+      await forceIdle()
+    } catch (err) {
+      console.error('force_idle failed:', err)
+    }
     resetRecording()
     setPipelineState('idle')
+    setCapsuleToast(t('capsule.recordingCancelled', '转录已取消'))
   }
 
   return (
@@ -37,7 +47,7 @@ export function CapsuleProcessing() {
       </p>
       <button
         onClick={handleCancel}
-        aria-label="Cancel processing"
+        aria-label={t('capsule.cancelProcessing', 'Cancel processing')}
         className="flex-shrink-0 p-1 rounded-full text-white/70 hover:text-white hover:bg-white/15 transition-colors bg-transparent border-none cursor-pointer"
       >
         <X size={12} />

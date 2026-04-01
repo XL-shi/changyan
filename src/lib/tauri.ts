@@ -10,6 +10,10 @@ export async function stopRecording(): Promise<void> {
   return invoke('stop_recording')
 }
 
+export async function forceIdle(): Promise<void> {
+  return invoke('force_idle')
+}
+
 // Config commands
 export async function getConfig(): Promise<AppConfig> {
   return invoke('get_config')
@@ -63,6 +67,14 @@ export async function pauseHotkey(): Promise<void> {
 
 export async function resumeHotkey(): Promise<void> {
   return invoke('resume_hotkey')
+}
+
+export async function updateTranslateHotkey(hotkey: string): Promise<void> {
+  return invoke('update_translate_hotkey', { hotkey })
+}
+
+export async function startRecordingTranslate(): Promise<void> {
+  return invoke('start_recording_translate')
 }
 
 // History

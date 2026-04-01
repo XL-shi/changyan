@@ -14,6 +14,30 @@ use crate::storage;
 use crate::stt::{self, SttConfig, TranscriptEvent};
 use crate::SessionTokenStore;
 
+// ─── Emoji filtering ───
+
+/// Strip emoji characters from text. LLM models sometimes add emoji despite
+/// being instructed not to; this is a hard post-processing filter.
+fn strip_emoji(text: &str) -> String {
+    text.chars()
+        .filter(|&c| {
+            let cp = c as u32;
+            !matches!(cp,
+                // Supplementary Multilingual Plane emoji (most common)
+                0x1F000..=0x1FFFF |
+                // Miscellaneous Symbols (☀ ☁ ❄ ♻ etc.)
+                0x2600..=0x26FF |
+                // Dingbats (✂ ✈ ✔ ❌ etc.)
+                0x2700..=0x27BF |
+                // Emoji variation selector
+                0xFE0F |
+                // Combining enclosing keycap (1️⃣ etc.)
+                0x20E3
+            )
+        })
+        .collect()
+}
+
 // ─── Timing constants ───
 
 /// On macOS, verify whether the process has been granted Accessibility (Assistive Access)
@@ -83,12 +107,18 @@ pub struct PipelineHandle {
     audio_volume: Arc<Mutex<f32>>,
     accumulated_text: Arc<Mutex<String>>,
     stt_done: Arc<Mutex<Arc<Notify>>>,
+    /// Set by force_idle() to signal stop() it should abort without output.
+    cancelled: Arc<std::sync::atomic::AtomicBool>,
     preloaded_config: Arc<Mutex<Option<storage::AppConfig>>>,
     preloaded_app_ctx: Arc<Mutex<Option<app_detector::AppContext>>>,
     preloaded_dictionary: Arc<Mutex<Option<Vec<String>>>>,
     preloaded_selected_text: Arc<Mutex<Option<String>>>,
     recording_start: Arc<Mutex<Option<std::time::Instant>>>,
     shared_client: reqwest::Client,
+    /// Set to true when the translate hotkey triggers recording; cleared after run_once reads it.
+    pub translate_session: Arc<std::sync::atomic::AtomicBool>,
+    /// Last raw STT text from the most recent recording. Used by translate_last().
+    pub last_raw_text: Arc<Mutex<String>>,
 }
 
 impl PipelineHandle {
@@ -100,18 +130,39 @@ impl PipelineHandle {
             audio_volume: Arc::new(Mutex::new(0.0)),
             accumulated_text: Arc::new(Mutex::new(String::new())),
             stt_done: Arc::new(Mutex::new(Arc::new(Notify::new()))),
+            cancelled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             preloaded_config: Arc::new(Mutex::new(None)),
             preloaded_app_ctx: Arc::new(Mutex::new(None)),
             preloaded_dictionary: Arc::new(Mutex::new(None)),
             preloaded_selected_text: Arc::new(Mutex::new(None)),
             recording_start: Arc::new(Mutex::new(None)),
             shared_client: reqwest::Client::new(),
+            translate_session: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            last_raw_text: Arc::new(Mutex::new(String::new())),
         }
+    }
+
+    /// Cancel any in-progress pipeline operation and immediately return to Idle.
+    /// Safe to call from any thread and any pipeline state.
+    pub fn force_idle(&self) {
+        self.cancelled.store(true, Ordering::SeqCst);
+        // Notify stt_done so any waiting stop() unblocks immediately
+        self.stt_done.lock().unwrap_or_else(|e| e.into_inner()).notify_one();
+        // Drop audio capture
+        *self.audio_handle.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        self.set_state(PipelineState::Idle);
     }
 
     fn set_state(&self, new_state: PipelineState) {
         self.state.store(new_state.as_u8(), Ordering::SeqCst);
         let _ = self.app_handle.emit("pipeline:state", new_state);
+
+        // Raise capsule immediately when recording starts — do this on the Rust side
+        // (before the frontend round-trip) so the window is at the correct level
+        // in fullscreen spaces the moment recording begins.
+        if new_state == PipelineState::Recording {
+            crate::raise_capsule_window(&self.app_handle);
+        }
 
         // Update tray tooltip + menu to reflect pipeline state
         if let Some(tray_handle) = self.app_handle.try_state::<crate::TrayHandle>() {
@@ -216,6 +267,9 @@ impl PipelineHandle {
             }
         }
         crate::refresh_tray(&self.app_handle);
+
+        // Reset cancel flag for this new recording session
+        self.cancelled.store(false, Ordering::SeqCst);
 
         // Clear accumulated text
         self.accumulated_text
@@ -442,8 +496,11 @@ impl PipelineHandle {
     }
 
     pub async fn stop(&self) -> Result<()> {
-        // Atomic CAS: only one caller can transition Recording → Transcribing
-        if self
+        // Atomic CAS: only one caller can transition Recording → Transcribing.
+        // If CAS fails because state is still Idle (start() hasn't set it yet due to async
+        // scheduling), wait briefly and retry once — this fixes the race where a quick
+        // press+release causes stop() to run before start() completes its own CAS.
+        let cas_ok = self
             .state
             .compare_exchange(
                 PipelineState::Recording.as_u8(),
@@ -451,9 +508,24 @@ impl PipelineHandle {
                 Ordering::SeqCst,
                 Ordering::SeqCst,
             )
-            .is_err()
-        {
-            return Ok(());
+            .is_ok();
+        if !cas_ok {
+            if self.state.load(Ordering::SeqCst) == PipelineState::Idle.as_u8() {
+                // start() may still be in flight; give it a moment then retry
+                tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+            }
+            if self
+                .state
+                .compare_exchange(
+                    PipelineState::Recording.as_u8(),
+                    PipelineState::Transcribing.as_u8(),
+                    Ordering::SeqCst,
+                    Ordering::SeqCst,
+                )
+                .is_err()
+            {
+                return Ok(());
+            }
         }
         let _ = self
             .app_handle
@@ -583,6 +655,12 @@ impl PipelineHandle {
             stt_elapsed.as_millis()
         );
 
+        // If force_idle() was called while we were waiting, bail out silently.
+        if self.cancelled.load(Ordering::SeqCst) {
+            tracing::info!("[Pipeline] cancelled by force_idle, skipping output");
+            return Ok(());
+        }
+
         let raw_text = self
             .accumulated_text
             .lock()
@@ -597,6 +675,9 @@ impl PipelineHandle {
             self.set_state(PipelineState::Idle);
             return Ok(());
         }
+
+        // Store raw text so the translate hotkey can translate it later
+        *self.last_raw_text.lock().unwrap_or_else(|e| e.into_inner()) = raw_text.clone();
 
         let final_text;
         let llm_elapsed;
@@ -617,15 +698,28 @@ impl PipelineHandle {
                 raw_text: raw_text.clone(),
                 app_type: app_ctx.app_type,
                 dictionary: dictionary_words,
-                translate_enabled: config.translate_enabled,
+                translate_enabled: self.translate_session.swap(false, Ordering::Relaxed),
                 target_lang: config.target_lang.clone(),
                 selected_text,
+                style_examples: {
+                    let app_type_str = format!("{:?}", app_ctx.app_type);
+                    self.app_handle
+                        .state::<storage::HistoryStore>()
+                        .recent_polished_by_app_type(&app_type_str, 5)
+                        .await
+                },
             };
 
             match provider.polish(&llm_config, &req, Some(&on_chunk)).await {
                 Ok(response) => {
-                    final_text = response.polished_text;
+                    final_text = strip_emoji(response.polished_text.trim());
                     llm_elapsed = llm_start.elapsed();
+
+                    if final_text.is_empty() {
+                        tracing::info!("LLM returned empty text (filler-only input), skipping output");
+                        self.set_state(PipelineState::Idle);
+                        return Ok(());
+                    }
 
                     if let Err(e) = self
                         .output_text(&final_text, &app_ctx.app_name, &config)
@@ -747,9 +841,7 @@ impl PipelineHandle {
             })
             .await;
             let _ = self.app_handle.emit("pipeline:target_app", app_name);
-            let _ = self
-                .app_handle
-                .emit("pipeline:error", "pipeline.error.accessibilityNoPermission");
+            let _ = self.app_handle.emit("pipeline:copy_ready", text.to_string());
             return Ok(());
         }
 
@@ -764,6 +856,112 @@ impl PipelineHandle {
 
         let _ = self.app_handle.emit("pipeline:target_app", app_name);
 
+        Ok(())
+    }
+
+    /// Translate the last transcribed text using LLM and output the result.
+    /// Called when the user presses the translate hotkey after recording.
+    pub async fn translate_last(&self) -> Result<()> {
+        // Only run when idle
+        if self.state.load(Ordering::SeqCst) != PipelineState::Idle.as_u8() {
+            return Ok(());
+        }
+
+        let raw_text = self
+            .last_raw_text
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+
+        if raw_text.is_empty() {
+            let _ = self
+                .app_handle
+                .emit("pipeline:error", "No recent transcription to translate.");
+            return Ok(());
+        }
+
+        let config = self.load_config().await;
+
+        let llm_api_key = if config.llm_provider == "cloud" {
+            self.app_handle
+                .state::<SessionTokenStore>()
+                .0
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .clone()
+        } else {
+            config.llm_api_key.clone()
+        };
+
+        if llm_api_key.is_empty() && config.llm_provider != "cloud" {
+            let _ = self.app_handle.emit(
+                "pipeline:error",
+                "LLM API key is not configured. Please set it in Settings → AI Polish.",
+            );
+            return Ok(());
+        }
+
+        let llm_config = LlmConfig {
+            api_key: llm_api_key,
+            model: config.llm_model.clone(),
+            base_url: config.llm_base_url.clone(),
+            max_tokens: 4096,
+            temperature: 0.3,
+        };
+
+        let provider = llm::create_provider(&config.llm_provider, Some(self.shared_client.clone()));
+        let app_ctx = app_detector::detect_current_app();
+
+        self.set_state(PipelineState::Polishing);
+
+        let app_handle = self.app_handle.clone();
+        let on_chunk: llm::ChunkCallback = Box::new(move |chunk: &str| {
+            let _ = app_handle.emit("llm:chunk", chunk);
+        });
+
+        let req = PolishRequest {
+            raw_text: raw_text.clone(),
+            app_type: app_ctx.app_type,
+            dictionary: self
+                .app_handle
+                .state::<storage::DictionaryStore>()
+                .words()
+                .await,
+            translate_enabled: true,
+            target_lang: config.target_lang.clone(),
+            selected_text: None,
+            style_examples: {
+                let app_type_str = format!("{:?}", app_ctx.app_type);
+                self.app_handle
+                    .state::<storage::HistoryStore>()
+                    .recent_polished_by_app_type(&app_type_str, 5)
+                    .await
+            },
+        };
+
+        match provider.polish(&llm_config, &req, Some(&on_chunk)).await {
+            Ok(response) => {
+                let final_text = strip_emoji(response.polished_text.trim());
+                if final_text.is_empty() {
+                    self.set_state(PipelineState::Idle);
+                    return Ok(());
+                }
+                if let Err(e) = self.output_text(&final_text, &app_ctx.app_name, &config).await {
+                    tracing::error!("translate_last output failed: {}", e);
+                    let _ = self
+                        .app_handle
+                        .emit("pipeline:error", format!("Output failed: {e}"));
+                }
+            }
+            Err(e) => {
+                tracing::error!("translate_last LLM failed: {}", e);
+                let _ = self
+                    .app_handle
+                    .emit("pipeline:error", format!("Translation failed: {e}"));
+            }
+        }
+
+        self.set_state(PipelineState::Idle);
         Ok(())
     }
 

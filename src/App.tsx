@@ -14,8 +14,9 @@ import { Onboarding } from './components/Onboarding'
 import { MainLayout } from './components/MainLayout'
 import { HomePage } from './components/HomePage'
 import { UpgradePage } from './components/UpgradePage'
-import { AccountPage } from './components/AccountPage'
+// import { AccountPage } from './components/AccountPage'
 import { ToastContainer } from './components/Toast'
+import { CopyDialog } from './components/CopyDialog'
 
 function CapsuleApp() {
   useTauriEvents()
@@ -139,8 +140,10 @@ function MainApp() {
       {route === 'settings' && <Settings />}
       {route === 'history' && <History />}
       {route === 'upgrade' && <UpgradePage />}
-      {route === 'account' && <AccountPage />}
+      {/* Account page temporarily hidden */}
+      {/* {route === 'account' && <AccountPage />} */}
       <ToastContainer />
+      <CopyDialog />
     </MainLayout>
   )
 }

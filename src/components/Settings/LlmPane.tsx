@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../../stores/appStore'
 import { useAuthStore } from '../../stores/authStore'
-import { LLM_PROVIDERS, LLM_DEFAULT_CONFIG, TARGET_LANGUAGES } from '../../lib/constants'
+import { LLM_PROVIDERS, LLM_DEFAULT_CONFIG } from '../../lib/constants'
 import { benchLlmConnection, fetchLlmModels } from '../../lib/tauri'
 import { FormField } from './shared/FormField'
 import { Toggle } from './shared/Toggle'
@@ -203,11 +203,6 @@ export function LlmPane() {
           label={t('settings.enableAiPolish')}
         />
         <Toggle
-          checked={config.translate_enabled}
-          onChange={(checked) => updateConfig({ translate_enabled: checked })}
-          label={t('settings.translationMode')}
-        />
-        <Toggle
           checked={config.selected_text_enabled}
           onChange={(checked) => updateConfig({ selected_text_enabled: checked })}
           label={t('settings.selectedTextContext')}
@@ -218,22 +213,6 @@ export function LlmPane() {
           </p>
         )}
       </div>
-
-      {config.translate_enabled && (
-        <FormField label={t('settings.targetLanguage')}>
-          <select
-            value={config.target_lang}
-            onChange={(e) => updateConfig({ target_lang: e.target.value })}
-            className="w-full px-3 py-2.5 bg-bg-secondary border border-border rounded-[10px] text-[13px] text-text-primary outline-none focus:border-border-focus transition-colors"
-          >
-            {TARGET_LANGUAGES.map((l) => (
-              <option key={l.value} value={l.value}>
-                {l.label}
-              </option>
-            ))}
-          </select>
-        </FormField>
-      )}
     </div>
   )
 }

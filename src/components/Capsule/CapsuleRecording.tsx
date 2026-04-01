@@ -1,40 +1,61 @@
 import { motion, useReducedMotion } from 'framer-motion'
-import { X } from 'lucide-react'
-import { useRecording } from '../../hooks/useRecording'
+import { X, Check } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { forceIdle, stopRecording } from '../../lib/tauri'
+import { useAppStore } from '../../stores/appStore'
 import { Waveform } from './Waveform'
-import { DurationTimer } from './DurationTimer'
 
 export function CapsuleRecording() {
-  const { stopRecording } = useRecording()
+  const { t } = useTranslation()
   const reduced = useReducedMotion()
+  const setCapsuleToast = useAppStore((s) => s.setCapsuleToast)
+  const resetRecording = useAppStore((s) => s.resetRecording)
+  const setPipelineState = useAppStore((s) => s.setPipelineState)
 
   const handleCancel = async (e: React.MouseEvent) => {
     e.stopPropagation()
     try {
+      await forceIdle()
+    } catch (err) {
+      console.error('force_idle failed:', err)
+    }
+    resetRecording()
+    setPipelineState('idle')
+    setCapsuleToast(t('capsule.recordingCancelled', '转录已取消'))
+  }
+
+  const handleConfirm = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
       await stopRecording()
     } catch (err) {
-      console.error('Failed to stop recording:', err)
+      console.error('stop_recording failed:', err)
     }
   }
 
   return (
-    <motion.div className="relative z-10 flex items-center gap-2 h-9 px-3">
-      {/* White pulse dot — gentle opacity loop */}
-      <motion.div
-        className="w-2 h-2 rounded-full bg-white/80 flex-shrink-0"
-        animate={reduced ? undefined : { opacity: [1, 0.5, 1] }}
-        transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
-      />
-      <Waveform />
-      <div className="flex-1" />
-      <DurationTimer />
-      <button
+    <motion.div className="relative z-10 flex items-center justify-between h-9 px-3 w-[200px]" initial={false}>
+      <motion.button
         onClick={handleCancel}
-        aria-label="Cancel recording"
-        className="flex-shrink-0 p-1 rounded-full text-white/70 hover:text-white hover:bg-white/15 transition-colors bg-transparent border-none cursor-pointer"
+        aria-label={t('capsule.cancelRecording', 'Cancel recording')}
+        className="w-6 h-6 rounded-full bg-white flex items-center justify-center border-none cursor-pointer flex-shrink-0"
+        whileHover={reduced ? undefined : { scale: 1.1 }}
+        whileTap={reduced ? undefined : { scale: 0.9 }}
       >
-        <X size={12} />
-      </button>
+        <X size={12} className="text-neutral-900" strokeWidth={2.5} />
+      </motion.button>
+
+      <Waveform />
+
+      <motion.button
+        onClick={handleConfirm}
+        aria-label={t('capsule.confirmRecording', 'Stop and transcribe')}
+        className="w-6 h-6 rounded-full bg-white flex items-center justify-center border-none cursor-pointer flex-shrink-0"
+        whileHover={reduced ? undefined : { scale: 1.1 }}
+        whileTap={reduced ? undefined : { scale: 0.9 }}
+      >
+        <Check size={12} className="text-neutral-900" strokeWidth={2.5} />
+      </motion.button>
     </motion.div>
   )
 }

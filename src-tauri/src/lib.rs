@@ -16,6 +16,7 @@ use tauri_plugin_store::StoreExt;
 use tracing_subscriber::EnvFilter;
 
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Default cloud API base URL. Override with the `API_BASE_URL` environment variable.
 pub const DEFAULT_API_BASE_URL: &str = "https://www.opentypeless.com";
@@ -25,12 +26,20 @@ pub fn api_base_url() -> String {
     std::env::var("API_BASE_URL").unwrap_or_else(|_| DEFAULT_API_BASE_URL.to_string())
 }
 
-/// Cached hotkey mode to avoid loading config from disk on every keypress.
-/// Updated whenever config is saved.
-struct HotkeyModeCache(Arc<Mutex<String>>);
+/// State for Fn/Globe key hotkey (captured via CGEventTap, not tauri-plugin-global-shortcut).
+struct FnHotkeyState {
+    /// Whether the Fn hotkey is currently active.
+    enabled: Arc<AtomicBool>,
+    /// True while the user is recording a new hotkey in Settings — tap emits
+    /// `hotkey:fn_detected` instead of driving the pipeline.
+    recording: Arc<AtomicBool>,
+}
 
 /// Cached close_to_tray setting to avoid blocking I/O in the window close handler.
 struct CloseToTrayCache(Arc<Mutex<bool>>);
+
+/// Current translate hotkey string (empty = disabled). Updated whenever the user changes it.
+struct TranslateHotkeyCache(Arc<Mutex<String>>);
 
 /// Session token for cloud providers. Set by the frontend after Better Auth login.
 /// The Rust pipeline reads this when creating cloud STT/LLM providers.
@@ -126,6 +135,272 @@ async fn stop_recording(state: tauri::State<'_, pipeline::PipelineHandle>) -> Re
     state.stop().await.map_err(|e| e.to_string())
 }
 
+/// Force the pipeline back to Idle from any state, cancelling any in-progress operation.
+#[tauri::command]
+fn force_idle(state: tauri::State<'_, pipeline::PipelineHandle>) {
+    state.force_idle();
+}
+
+/// Start recording in translate mode. Sets translate_session flag so the LLM polishes with translation.
+#[tauri::command]
+async fn start_recording_translate(
+    state: tauri::State<'_, pipeline::PipelineHandle>,
+) -> Result<(), String> {
+    state
+        .translate_session
+        .store(true, std::sync::atomic::Ordering::Relaxed);
+    state.start().await.map_err(|e| e.to_string())
+}
+
+/// Debug: read back capsule window level, collection behavior, position and size at runtime.
+#[cfg(target_os = "macos")]
+#[tauri::command]
+fn debug_capsule_window(app: tauri::AppHandle) -> String {
+    use objc2_app_kit::{NSWindow, NSWindowCollectionBehavior};
+    let Some(capsule) = app.get_webview_window("capsule") else {
+        let msg = "capsule window not found".to_string();
+        tracing::warn!("[Capsule debug] {}", msg);
+        return msg;
+    };
+    let pos = capsule.outer_position().ok();
+    let size = capsule.outer_size().ok();
+    let visible = capsule.is_visible().unwrap_or(false);
+    let Ok(ns_ptr) = capsule.ns_window() else {
+        let msg = format!("ns_window() failed — pos={pos:?} size={size:?} visible={visible}");
+        tracing::warn!("[Capsule debug] {}", msg);
+        return msg;
+    };
+    unsafe {
+        let ns_window = &*(ns_ptr as *const NSWindow);
+        let level = ns_window.level();
+        let behavior = ns_window.collectionBehavior();
+        let can_join = behavior.contains(NSWindowCollectionBehavior::CanJoinAllSpaces);
+        let fs_aux = behavior.contains(NSWindowCollectionBehavior::FullScreenAuxiliary);
+        let msg = format!(
+            "level={level} canJoinAllSpaces={can_join} fullScreenAuxiliary={fs_aux} \
+             visible={visible} pos={pos:?} size={size:?}"
+        );
+        tracing::info!("[Capsule debug] {}", msg);
+        msg
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+#[tauri::command]
+fn debug_capsule_window(_app: tauri::AppHandle) -> String {
+    "debug_capsule_window: macOS only".to_string()
+}
+
+/// Shared implementation: re-apply window level/behavior and call orderFrontRegardless.
+/// Force the window onto the currently active Space (including fullscreen Spaces)
+/// using CoreGraphics Session private APIs. This operates at the compositor level,
+/// below AppKit, and is how apps like Yabai/Rectangle handle fullscreen overlays.
+#[cfg(target_os = "macos")]
+unsafe fn cgs_move_to_active_space(ns_window: &objc2_app_kit::NSWindow) {
+    extern "C" {
+        fn _CGSDefaultConnection() -> i32;
+        fn CGSGetActiveSpace(cid: i32) -> u64;
+        fn CGSAddWindowsToSpaces(
+            cid: i32,
+            window_array: *const std::ffi::c_void,
+            space_array: *const std::ffi::c_void,
+        );
+        fn CGSSetWindowTags(cid: i32, wid: i32, tags: *const i32, tag_size: i32) -> i32;
+    }
+
+    // CoreFoundation FFI (toll-free bridged with NS types)
+    #[allow(non_upper_case_globals)]
+    const kCFNumberSInt32Type: isize = 3;
+    #[allow(non_upper_case_globals)]
+    const kCFNumberSInt64Type: isize = 4;
+    extern "C" {
+        fn CFNumberCreate(
+            allocator: *const std::ffi::c_void,
+            the_type: isize,
+            value_ptr: *const std::ffi::c_void,
+        ) -> *const std::ffi::c_void;
+        fn CFArrayCreate(
+            allocator: *const std::ffi::c_void,
+            values: *const *const std::ffi::c_void,
+            num_values: isize,
+            callbacks: *const std::ffi::c_void,
+        ) -> *const std::ffi::c_void;
+        fn CFRelease(cf: *const std::ffi::c_void);
+        static kCFTypeArrayCallBacks: std::ffi::c_void;
+    }
+
+    let cid = _CGSDefaultConnection();
+    let wid = ns_window.windowNumber() as i32;
+    let active_space = CGSGetActiveSpace(cid);
+
+    tracing::info!(
+        "[Capsule] CGS: cid={cid} wid={wid} activeSpace={active_space}"
+    );
+
+    // 1) Set sticky tags (both bit 1 = 0x2 and bit 11 = 0x800)
+    let tags: [i32; 2] = [(1 << 1) | (1 << 11), 0]; // 0x802
+    let tag_result = CGSSetWindowTags(cid, wid, tags.as_ptr(), 32);
+    tracing::info!("[Capsule] CGSSetWindowTags(0x802) result={tag_result}");
+
+    // 2) Explicitly add window to the active space
+    if active_space != 0 {
+        let wid_ref = CFNumberCreate(
+            std::ptr::null(),
+            kCFNumberSInt32Type,
+            &wid as *const i32 as *const _,
+        );
+        let sid_ref = CFNumberCreate(
+            std::ptr::null(),
+            kCFNumberSInt64Type,
+            &active_space as *const u64 as *const _,
+        );
+        if !wid_ref.is_null() && !sid_ref.is_null() {
+            let wid_arr = CFArrayCreate(
+                std::ptr::null(),
+                &wid_ref as *const *const _,
+                1,
+                &kCFTypeArrayCallBacks as *const _,
+            );
+            let sid_arr = CFArrayCreate(
+                std::ptr::null(),
+                &sid_ref as *const *const _,
+                1,
+                &kCFTypeArrayCallBacks as *const _,
+            );
+            if !wid_arr.is_null() && !sid_arr.is_null() {
+                CGSAddWindowsToSpaces(cid, wid_arr, sid_arr);
+                tracing::info!("[Capsule] CGSAddWindowsToSpaces done (space={active_space})");
+                CFRelease(wid_arr);
+                CFRelease(sid_arr);
+            }
+            CFRelease(wid_ref);
+            CFRelease(sid_ref);
+        }
+    }
+}
+
+/// Safe to call from any thread — schedules on the main thread internally.
+#[cfg(target_os = "macos")]
+pub(crate) fn raise_capsule_window(app: &tauri::AppHandle) {
+    let app2 = app.clone();
+    app.run_on_main_thread(move || {
+        use objc2_app_kit::{NSScreenSaverWindowLevel, NSWindow, NSWindowCollectionBehavior};
+        let Some(capsule) = app2.get_webview_window("capsule") else { return };
+        let Ok(ns_ptr) = capsule.ns_window() else { return };
+        unsafe {
+            let ns_window = &*(ns_ptr as *const NSWindow);
+            let before_level = ns_window.level();
+            let before_behavior = ns_window.collectionBehavior();
+            let is_visible = ns_window.isVisible();
+            let is_on_active_space = ns_window.isOnActiveSpace();
+            tracing::info!(
+                "[Capsule] raise BEFORE: level={} behavior={:?} isVisible={} isOnActiveSpace={}",
+                before_level, before_behavior, is_visible, is_on_active_space
+            );
+            // CanJoinAllSpaces: appears in every space including fullscreen spaces (works
+            // because the window was converted to an NSPanel with floatingPanel=true).
+            // FullScreenAuxiliary: renders alongside a fullscreen app.
+            // IgnoresCycle: exclude from Cmd+` cycling.
+            let behavior = NSWindowCollectionBehavior::CanJoinAllSpaces
+                | NSWindowCollectionBehavior::FullScreenAuxiliary
+                | NSWindowCollectionBehavior::IgnoresCycle;
+            ns_window.setCollectionBehavior(behavior);
+            ns_window.setLevel(NSScreenSaverWindowLevel);
+            crate::cgs_move_to_active_space(ns_window);
+            ns_window.orderFrontRegardless();
+            tracing::info!(
+                "[Capsule] raise AFTER:  level={} behavior={:?} isVisible={} isOnActiveSpace={}",
+                ns_window.level(), ns_window.collectionBehavior(), ns_window.isVisible(), ns_window.isOnActiveSpace()
+            );
+        }
+    })
+    .ok();
+}
+
+#[cfg(not(target_os = "macos"))]
+pub(crate) fn raise_capsule_window(_app: &tauri::AppHandle) {}
+
+/// Register an observer for NSWorkspaceActiveSpaceDidChangeNotification so the capsule
+/// is re-raised automatically whenever Mission Control changes the active space
+/// (e.g., when another app enters or exits native fullscreen).
+/// The observer is intentionally leaked so it stays active for the app's entire lifetime.
+#[cfg(target_os = "macos")]
+fn register_space_observer(app: &tauri::App) {
+    use block2::RcBlock;
+    use objc2_app_kit::{NSScreenSaverWindowLevel, NSWindow, NSWindowCollectionBehavior, NSWorkspace};
+    use objc2_foundation::NSString;
+
+    let app_handle = app.handle().clone();
+
+    app.run_on_main_thread(move || unsafe {
+        let workspace = NSWorkspace::sharedWorkspace();
+        let nc = workspace.notificationCenter();
+        let name = NSString::from_str("NSWorkspaceActiveSpaceDidChangeNotification");
+
+        let app_h = app_handle.clone();
+        let block = RcBlock::new(
+            move |_: std::ptr::NonNull<objc2_foundation::NSNotification>| {
+                tracing::info!("[Capsule] NSWorkspaceActiveSpaceDidChangeNotification fired");
+                if let Some(capsule) = app_h.get_webview_window("capsule") {
+                    if let Ok(ns_ptr) = capsule.ns_window() {
+                        let ns_window = &*(ns_ptr as *const NSWindow);
+                        let before_level = ns_window.level();
+                        let before_behavior = ns_window.collectionBehavior();
+                        let is_visible = ns_window.isVisible();
+                        let is_on_active_space = ns_window.isOnActiveSpace();
+                        tracing::info!(
+                            "[Capsule] space-observer BEFORE: level={} behavior={:?} isVisible={} isOnActiveSpace={}",
+                            before_level, before_behavior, is_visible, is_on_active_space
+                        );
+                        let behavior = NSWindowCollectionBehavior::CanJoinAllSpaces
+                            | NSWindowCollectionBehavior::FullScreenAuxiliary
+                            | NSWindowCollectionBehavior::IgnoresCycle;
+                        ns_window.setCollectionBehavior(behavior);
+                        ns_window.setLevel(NSScreenSaverWindowLevel);
+                        crate::cgs_move_to_active_space(ns_window);
+                        ns_window.orderFrontRegardless();
+                        tracing::info!(
+                            "[Capsule] space-observer AFTER:  level={} behavior={:?} isVisible={} isOnActiveSpace={}",
+                            ns_window.level(), ns_window.collectionBehavior(), ns_window.isVisible(), ns_window.isOnActiveSpace()
+                        );
+                    }
+                } else {
+                    tracing::warn!("[Capsule] space-observer: capsule window not found");
+                }
+            },
+        );
+
+        // queue=None: notification delivered on the posting thread.
+        // NSWorkspaceActiveSpaceDidChangeNotification is always posted on the main thread,
+        // so NSWindow calls inside the block are safe.
+        let observer = nc.addObserverForName_object_queue_usingBlock(
+            Some(&name),
+            None,
+            None,
+            &block,
+        );
+
+        // Intentionally leak the observer — it stays registered for the app's lifetime.
+        std::mem::forget(observer);
+    })
+    .ok();
+}
+
+/// Force the capsule window above fullscreen apps by re-applying level and calling orderFrontRegardless.
+#[cfg(target_os = "macos")]
+#[tauri::command]
+fn bring_capsule_to_front(app: tauri::AppHandle) {
+    raise_capsule_window(&app);
+}
+
+#[cfg(not(target_os = "macos"))]
+#[tauri::command]
+fn bring_capsule_to_front(app: tauri::AppHandle) {
+    if let Some(capsule) = app.get_webview_window("capsule") {
+        let _ = capsule.show();
+    }
+}
+
 #[tauri::command]
 async fn get_config(
     state: tauri::State<'_, storage::ConfigManager>,
@@ -136,11 +411,9 @@ async fn get_config(
 #[tauri::command]
 async fn update_config(
     state: tauri::State<'_, storage::ConfigManager>,
-    cache: tauri::State<'_, HotkeyModeCache>,
     close_tray_cache: tauri::State<'_, CloseToTrayCache>,
     config: storage::AppConfig,
 ) -> Result<(), String> {
-    *cache.0.lock().unwrap_or_else(|e| e.into_inner()) = config.hotkey_mode.clone();
     *close_tray_cache.0.lock().unwrap_or_else(|e| e.into_inner()) = config.close_to_tray;
     state.save(&config).await.map_err(|e| e.to_string())
 }
@@ -716,17 +989,26 @@ async fn update_hotkey(
     config_state: tauri::State<'_, storage::ConfigManager>,
     hotkey: String,
 ) -> Result<(), String> {
-    let new_shortcut =
-        parse_hotkey(&hotkey).ok_or_else(|| format!("Invalid hotkey: {}", hotkey))?;
+    let fn_state = app.state::<FnHotkeyState>();
+    // Recording is always done by the time update_hotkey is called
+    fn_state.recording.store(false, Ordering::Relaxed);
 
-    // Unregister all existing shortcuts, then register the new one
-    // (the global handler from with_handler is still active)
-    app.global_shortcut()
-        .unregister_all()
-        .map_err(|e| e.to_string())?;
-    app.global_shortcut()
-        .register(new_shortcut)
-        .map_err(|e| e.to_string())?;
+    if hotkey == "Fn" {
+        fn_state.enabled.store(true, Ordering::Relaxed);
+        app.global_shortcut()
+            .unregister_all()
+            .map_err(|e| e.to_string())?;
+    } else {
+        fn_state.enabled.store(false, Ordering::Relaxed);
+        let new_shortcut =
+            parse_hotkey(&hotkey).ok_or_else(|| format!("Invalid hotkey: {}", hotkey))?;
+        app.global_shortcut()
+            .unregister_all()
+            .map_err(|e| e.to_string())?;
+        app.global_shortcut()
+            .register(new_shortcut)
+            .map_err(|e| e.to_string())?;
+    }
 
     // Save updated hotkey to config
     let mut config = config_state.load().await.map_err(|e| e.to_string())?;
@@ -736,30 +1018,102 @@ async fn update_hotkey(
         .await
         .map_err(|e| e.to_string())?;
 
+    // Re-register translate hotkey if configured
+    if !config.translate_hotkey.is_empty() {
+        if let Some(t_shortcut) = parse_hotkey(&config.translate_hotkey) {
+            let _ = app.global_shortcut().register(t_shortcut);
+        }
+    }
+
     Ok(())
 }
 
 /// Temporarily unregister all global shortcuts so the webview can capture key events.
+/// Also sets recording=true so the CGEventTap forwards Fn/Globe key to the frontend.
 #[tauri::command]
 fn pause_hotkey(app: tauri::AppHandle) -> Result<(), String> {
+    let fn_state = app.state::<FnHotkeyState>();
+    fn_state.enabled.store(false, Ordering::Relaxed);
+    fn_state.recording.store(true, Ordering::Relaxed);
     app.global_shortcut()
         .unregister_all()
         .map_err(|e| e.to_string())
 }
 
+/// Register or update the translate hotkey without affecting the main hotkey.
+#[tauri::command]
+async fn update_translate_hotkey(
+    app: tauri::AppHandle,
+    config_state: tauri::State<'_, storage::ConfigManager>,
+    translate_cache: tauri::State<'_, TranslateHotkeyCache>,
+    hotkey: String,
+) -> Result<(), String> {
+    let fn_state = app.state::<FnHotkeyState>();
+    fn_state.recording.store(false, Ordering::Relaxed);
+
+    // Unregister all, then re-register main hotkey + new translate hotkey
+    let _ = app.global_shortcut().unregister_all();
+
+    let mut config = config_state.load().await.map_err(|e| e.to_string())?;
+
+    // Re-register main hotkey
+    if config.hotkey == "Fn" {
+        fn_state.enabled.store(true, Ordering::Relaxed);
+    } else {
+        let main_shortcut = parse_hotkey(&config.hotkey).unwrap_or_else(default_shortcut);
+        let _ = app.global_shortcut().register(main_shortcut);
+    }
+
+    // Register new translate hotkey (empty = clear)
+    if !hotkey.is_empty() {
+        let t_shortcut =
+            parse_hotkey(&hotkey).ok_or_else(|| format!("Invalid hotkey: {}", hotkey))?;
+        app.global_shortcut()
+            .register(t_shortcut)
+            .map_err(|e| e.to_string())?;
+    }
+
+    // Update in-memory cache so the shortcut handler can identify translate events
+    *translate_cache.0.lock().unwrap_or_else(|e| e.into_inner()) = hotkey.clone();
+
+    config.translate_hotkey = hotkey;
+    config_state
+        .save(&config)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 /// Re-register the current hotkey from config after recording is done.
+/// Clears recording=false so the CGEventTap resumes normal pipeline control.
 #[tauri::command]
 async fn resume_hotkey(
     app: tauri::AppHandle,
     config_state: tauri::State<'_, storage::ConfigManager>,
 ) -> Result<(), String> {
     let config = config_state.load().await.map_err(|e| e.to_string())?;
-    let shortcut = parse_hotkey(&config.hotkey).unwrap_or_else(default_shortcut);
-    // Ensure clean state, then register
-    let _ = app.global_shortcut().unregister_all();
-    app.global_shortcut()
-        .register(shortcut)
-        .map_err(|e| e.to_string())
+    let fn_state = app.state::<FnHotkeyState>();
+    fn_state.recording.store(false, Ordering::Relaxed);
+
+    if config.hotkey == "Fn" {
+        fn_state.enabled.store(true, Ordering::Relaxed);
+    } else {
+        fn_state.enabled.store(false, Ordering::Relaxed);
+        let shortcut = parse_hotkey(&config.hotkey).unwrap_or_else(default_shortcut);
+        // Ensure clean state, then register
+        let _ = app.global_shortcut().unregister_all();
+        app.global_shortcut()
+            .register(shortcut)
+            .map_err(|e| e.to_string())?;
+    }
+
+    // Re-register translate hotkey if configured
+    if !config.translate_hotkey.is_empty() {
+        if let Some(t_shortcut) = parse_hotkey(&config.translate_hotkey) {
+            let _ = app.global_shortcut().register(t_shortcut);
+        }
+    }
+
+    Ok(())
 }
 
 // ─── Hotkey parsing ───
@@ -770,59 +1124,328 @@ fn default_shortcut() -> Shortcut {
         .unwrap_or_else(|| Shortcut::new(Some(Modifiers::CONTROL), Code::Slash))
 }
 
+/// Register a CGEventTap on the main RunLoop for Fn/Globe key detection.
+///
+/// **Why not rdev?** `rdev::listen` runs a CGEventTap on a background thread and calls
+/// `TSMGetInputSourceProperty` (via its key-to-string conversion) for every event. That
+/// function asserts it's on the main thread — causing an immediate crash on any keypress.
+///
+/// Our tap is listen-only and calls only `CGEventGetIntegerValueField` /
+/// `CGEventGetFlags`, which are thread-safe CoreGraphics reads with no TSM dependency.
+/// By adding the RunLoop source to the **main** RunLoop the callback also runs on the
+/// main thread, satisfying any implicit threading requirements.
+#[cfg(target_os = "macos")]
+fn register_fn_key_tap(
+    app_handle: tauri::AppHandle,
+    enabled: Arc<AtomicBool>,
+    recording: Arc<AtomicBool>,
+) {
+    use std::ffi::c_void;
+
+    // ── CoreGraphics / CoreFoundation FFI ────────────────────────────────────
+    #[allow(non_camel_case_types)]
+    type CGEventRef = *mut c_void;
+    #[allow(non_camel_case_types)]
+    type CGEventTapProxy = *mut c_void;
+    #[allow(non_camel_case_types)]
+    type CFMachPortRef = *mut c_void;
+    #[allow(non_camel_case_types)]
+    type CFRunLoopSourceRef = *mut c_void;
+    #[allow(non_camel_case_types)]
+    type CFRunLoopRef = *mut c_void;
+    #[allow(non_camel_case_types)]
+    type CFStringRef = *const c_void;
+
+    #[allow(non_camel_case_types)]
+    type CGEventTapCallBack = unsafe extern "C" fn(
+        proxy: CGEventTapProxy,
+        event_type: u32,
+        event: CGEventRef,
+        user_info: *mut c_void,
+    ) -> CGEventRef;
+
+    #[link(name = "CoreGraphics", kind = "framework")]
+    extern "C" {
+        fn CGEventTapCreate(
+            tap: u32,
+            place: u32,
+            options: u32,
+            events_of_interest: u64,
+            callback: CGEventTapCallBack,
+            user_info: *mut c_void,
+        ) -> CFMachPortRef;
+        fn CGEventTapEnable(tap: CFMachPortRef, enable: bool);
+        fn CGEventGetIntegerValueField(event: CGEventRef, field: u32) -> i64;
+        fn CGEventGetFlags(event: CGEventRef) -> u64;
+    }
+
+    #[link(name = "CoreFoundation", kind = "framework")]
+    extern "C" {
+        fn CFMachPortCreateRunLoopSource(
+            allocator: *const c_void,
+            port: CFMachPortRef,
+            order: isize,
+        ) -> CFRunLoopSourceRef;
+        fn CFRunLoopGetMain() -> CFRunLoopRef;
+        fn CFRunLoopAddSource(rl: CFRunLoopRef, source: CFRunLoopSourceRef, mode: CFStringRef);
+        static kCFRunLoopCommonModes: CFStringRef;
+    }
+
+    // CGEventType constants
+    const CG_EVENT_KEY_DOWN: u32 = 10;
+    const CG_EVENT_KEY_UP: u32 = 11;
+    const CG_EVENT_FLAGS_CHANGED: u32 = 12;
+    // CGEventField: kCGKeyboardEventKeycode = 9
+    const CG_KEYBOARD_EVENT_KEYCODE: u32 = 9;
+    // kCGEventFlagMaskSecondaryFn = Fn modifier bit
+    const CG_FLAG_FN: u64 = 0x0080_0000;
+    // kVK_Function = 63 (Intel/older), Globe key = 179 (Apple Silicon)
+    const FN_KEYCODE: i64 = 63;
+    const GLOBE_KEYCODE: i64 = 179;
+    // Tap config: kCGSessionEventTap=1, kCGHeadInsertEventTap=0, kCGEventTapOptionListenOnly=1
+    const TAP_TYPE: u32 = 1;
+    const TAP_PLACE: u32 = 0;
+    const TAP_LISTEN_ONLY: u32 = 1;
+    let event_mask: u64 = (1u64 << CG_EVENT_KEY_DOWN)
+        | (1u64 << CG_EVENT_KEY_UP)
+        | (1u64 << CG_EVENT_FLAGS_CHANGED);
+
+    // ── Processing thread ────────────────────────────────────────────────────
+    // Fn/Globe key ALWAYS uses toggle semantics regardless of hotkey_mode:
+    // - tap when idle   → start recording
+    // - tap when recording → stop (finalize)
+    // - tap when stuck  → force cancel back to idle
+    // Releases are ignored entirely (Fn is a tap key, not a hold key).
+    let (tx, rx) = std::sync::mpsc::channel::<bool>();
+    std::thread::spawn({
+        let app_handle = app_handle.clone();
+        move || {
+            for is_press in rx {
+                if !is_press {
+                    continue; // ignore Fn key releases
+                }
+                let h = app_handle.clone();
+                tauri::async_runtime::spawn(async move {
+                    let pipeline = h.state::<pipeline::PipelineHandle>();
+                    match pipeline.current_state() {
+                        pipeline::PipelineState::Idle => {
+                            if let Err(e) = pipeline.start().await {
+                                tracing::error!("Fn key start: {e}");
+                                let _ = h.emit("pipeline:error", e.to_string());
+                            }
+                        }
+                        pipeline::PipelineState::Recording => {
+                            if let Err(e) = pipeline.stop().await {
+                                tracing::error!("Fn key stop: {e}");
+                                let _ = h.emit("pipeline:error", e.to_string());
+                            }
+                        }
+                        _ => {
+                            // Stuck in Transcribing/Polishing/Outputting — cancel
+                            pipeline.force_idle();
+                        }
+                    }
+                });
+            }
+        }
+    });
+
+    // ── CGEventTap callback ──────────────────────────────────────────────────
+    struct TapState {
+        enabled: Arc<AtomicBool>,
+        /// True while the user is recording a hotkey in Settings UI.
+        recording: Arc<AtomicBool>,
+        fn_pressed: AtomicBool,
+        /// Milliseconds of last sent `true` event (for debounce).
+        /// On Intel Macs, one physical Fn keypress can generate the sequence
+        /// FlagsChanged(down) → FlagsChanged(up) → FlagsChanged(down) in rapid
+        /// succession, causing a spurious second press event. We suppress any
+        /// `true` send within 300 ms of the previous one.
+        last_press_ms: std::sync::atomic::AtomicU64,
+        tx: std::sync::mpsc::Sender<bool>,
+        app_handle: tauri::AppHandle,
+    }
+
+    unsafe extern "C" fn tap_callback(
+        _proxy: CGEventTapProxy,
+        event_type: u32,
+        event: CGEventRef,
+        user_info: *mut c_void,
+    ) -> CGEventRef {
+        let state = &*(user_info as *const TapState);
+        let keycode = CGEventGetIntegerValueField(event, CG_KEYBOARD_EVENT_KEYCODE);
+
+        // ── Hotkey recording mode: detect Fn/Globe and notify the frontend ──
+        if state.recording.load(Ordering::Relaxed) {
+            let is_fn_press = match event_type {
+                CG_EVENT_KEY_DOWN if keycode == GLOBE_KEYCODE => true,
+                CG_EVENT_FLAGS_CHANGED if keycode == FN_KEYCODE => {
+                    CGEventGetFlags(event) & CG_FLAG_FN != 0
+                }
+                _ => false,
+            };
+            if is_fn_press {
+                let _ = state.app_handle.emit("hotkey:fn_detected", ());
+            }
+            return event;
+        }
+
+        // ── Normal operation: drive pipeline ────────────────────────────────
+        if !state.enabled.load(Ordering::Relaxed) {
+            return event;
+        }
+
+        // Helper: send a debounced "press" signal.
+        // Returns true if the signal was actually sent (not throttled).
+        let try_send_press = |state: &TapState| -> bool {
+            let now_ms = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis() as u64;
+            let last = state.last_press_ms.load(Ordering::Relaxed);
+            if now_ms.saturating_sub(last) < 300 {
+                return false; // within debounce window — suppress
+            }
+            state.last_press_ms.store(now_ms, Ordering::Relaxed);
+            let _ = state.tx.send(true);
+            true
+        };
+
+        match event_type {
+            CG_EVENT_KEY_DOWN if keycode == GLOBE_KEYCODE => {
+                if !state.fn_pressed.swap(true, Ordering::Relaxed) {
+                    try_send_press(state);
+                }
+            }
+            CG_EVENT_KEY_UP if keycode == GLOBE_KEYCODE => {
+                state.fn_pressed.store(false, Ordering::Relaxed);
+            }
+            CG_EVENT_FLAGS_CHANGED if keycode == FN_KEYCODE => {
+                // Fn key on Intel Macs generates FlagsChanged; flag bit indicates
+                // pressed/released. Debounce prevents spurious OS double-events.
+                let fn_down = CGEventGetFlags(event) & CG_FLAG_FN != 0;
+                if fn_down {
+                    if !state.fn_pressed.swap(true, Ordering::Relaxed) {
+                        try_send_press(state);
+                    }
+                } else {
+                    state.fn_pressed.store(false, Ordering::Relaxed);
+                }
+            }
+            _ => {}
+        }
+        event
+    }
+
+    // ── Register tap on main RunLoop ─────────────────────────────────────────
+    // Must be on the main thread so the callback (and any implicit framework calls)
+    // run there — avoids TSM/HIToolbox thread-safety assertions.
+    let app_handle2 = app_handle.clone();
+    app_handle
+        .run_on_main_thread(move || unsafe {
+            let state = Box::new(TapState {
+                enabled,
+                recording,
+                fn_pressed: AtomicBool::new(false),
+                last_press_ms: std::sync::atomic::AtomicU64::new(0),
+                tx,
+                app_handle: app_handle2,
+            });
+            let state_ptr = Box::into_raw(state) as *mut c_void;
+
+            let tap = CGEventTapCreate(
+                TAP_TYPE,
+                TAP_PLACE,
+                TAP_LISTEN_ONLY,
+                event_mask,
+                tap_callback,
+                state_ptr,
+            );
+            if tap.is_null() {
+                tracing::warn!("[FnKey] CGEventTapCreate failed — Input Monitoring permission may not be granted");
+                // Reclaim state to avoid leak
+                drop(Box::from_raw(state_ptr as *mut TapState));
+                return;
+            }
+            let source = CFMachPortCreateRunLoopSource(std::ptr::null(), tap, 0);
+            if source.is_null() {
+                tracing::warn!("[FnKey] CFMachPortCreateRunLoopSource failed");
+                return;
+            }
+            CFRunLoopAddSource(CFRunLoopGetMain(), source, kCFRunLoopCommonModes);
+            CGEventTapEnable(tap, true);
+            // Both `tap` (CFMachPort) and `source` (CFRunLoopSource) are intentionally
+            // leaked — they must stay alive for the entire app lifetime.
+            tracing::info!("[FnKey] CGEventTap registered on main RunLoop");
+        })
+        .ok();
+}
+
+#[cfg(not(target_os = "macos"))]
+fn register_fn_key_tap(
+    _app_handle: tauri::AppHandle,
+    _enabled: Arc<AtomicBool>,
+    _recording: Arc<AtomicBool>,
+) {
+}
+
 fn build_shortcut_handler(
     app_handle: tauri::AppHandle,
+    translate_hotkey_cache: Arc<Mutex<String>>,
 ) -> impl Fn(&tauri::AppHandle, &Shortcut, tauri_plugin_global_shortcut::ShortcutEvent)
        + Send
        + Sync
        + 'static {
-    move |_app, _shortcut, event| {
-        let handle = app_handle.clone();
-        match event.state {
-            ShortcutState::Pressed => {
-                let hotkey_mode = handle
-                    .state::<HotkeyModeCache>()
-                    .0
-                    .lock()
-                    .unwrap_or_else(|e| e.into_inner())
-                    .clone();
-                tauri::async_runtime::spawn(async move {
-                    let pipeline = handle.state::<pipeline::PipelineHandle>();
+    move |_app, shortcut, event| {
+        // Only act on key-press; key-release is ignored (toggle-only mode).
+        if event.state != ShortcutState::Pressed {
+            return;
+        }
 
-                    if hotkey_mode == "toggle" {
-                        if pipeline.current_state() == pipeline::PipelineState::Idle {
-                            if let Err(e) = pipeline.start().await {
-                                tracing::error!("Failed to start recording: {}", e);
-                                let _ = handle.emit("pipeline:error", e.to_string());
-                            }
-                        } else if let Err(e) = pipeline.stop().await {
-                            tracing::error!("Failed to stop recording: {}", e);
-                            let _ = handle.emit("pipeline:error", e.to_string());
-                        }
-                    } else if let Err(e) = pipeline.start().await {
+        // Determine if this shortcut is the translate hotkey
+        let th = translate_hotkey_cache
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        let is_translate = if !th.is_empty() {
+            if let Some(t) = parse_hotkey(&th) {
+                t.key == shortcut.key && t.mods == shortcut.mods
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        let handle = app_handle.clone();
+        tauri::async_runtime::spawn(async move {
+            let pipeline = handle.state::<pipeline::PipelineHandle>();
+            match pipeline.current_state() {
+                pipeline::PipelineState::Idle => {
+                    if is_translate {
+                        pipeline
+                            .translate_session
+                            .store(true, std::sync::atomic::Ordering::Relaxed);
+                        // Notify frontend that this recording is a translate session
+                        let _ = handle.emit("pipeline:translate_session", ());
+                    }
+                    if let Err(e) = pipeline.start().await {
                         tracing::error!("Failed to start recording: {}", e);
                         let _ = handle.emit("pipeline:error", e.to_string());
                     }
-                });
-            }
-            ShortcutState::Released => {
-                let hotkey_mode = handle
-                    .state::<HotkeyModeCache>()
-                    .0
-                    .lock()
-                    .unwrap_or_else(|e| e.into_inner())
-                    .clone();
-                if hotkey_mode != "toggle" {
-                    tauri::async_runtime::spawn(async move {
-                        let pipeline = handle.state::<pipeline::PipelineHandle>();
-                        if let Err(e) = pipeline.stop().await {
-                            tracing::error!("Failed to stop recording: {}", e);
-                            let _ = handle.emit("pipeline:error", e.to_string());
-                        }
-                    });
+                }
+                pipeline::PipelineState::Recording => {
+                    if let Err(e) = pipeline.stop().await {
+                        tracing::error!("Failed to stop recording: {}", e);
+                        let _ = handle.emit("pipeline:error", e.to_string());
+                    }
+                }
+                _ => {
+                    // Stuck in Transcribing/Polishing/Outputting — cancel
+                    pipeline.force_idle();
                 }
             }
-        }
+        });
     }
 }
 
@@ -1069,6 +1692,101 @@ pub fn run() {
                 }
             }
 
+            // Make the capsule float above fullscreen apps on macOS.
+            // Standard NSWindow + canJoinAllSpaces does NOT work for native fullscreen Spaces
+            // on Monterey/Intel. The fix: convert the NSWindow to an NSPanel at runtime and
+            // set floatingPanel=true. Apple docs: "A floating panel will show above full-screen
+            // content." NSPanel is a subclass of NSWindow, so all Tauri APIs keep working.
+            #[cfg(target_os = "macos")]
+            if let Some(capsule) = app.get_webview_window("capsule") {
+                if let Ok(ns_window_ptr) = capsule.ns_window() {
+                    use objc2_app_kit::{
+                        NSPanel, NSScreenSaverWindowLevel, NSWindow,
+                        NSWindowCollectionBehavior, NSWindowStyleMask,
+                    };
+                    use objc2::runtime::AnyClass;
+                    unsafe {
+                        // Convert NSWindow → NSPanel via runtime class swap.
+                        // Safe because NSPanel is a direct subclass of NSWindow and adds
+                        // only behavioral overrides (no extra ivars in practice).
+                        if let Some(panel_class) = AnyClass::get(c"NSPanel") {
+                            extern "C" {
+                                fn object_setClass(
+                                    obj: *mut std::ffi::c_void,
+                                    cls: *const std::ffi::c_void,
+                                ) -> *const std::ffi::c_void;
+                            }
+                            object_setClass(
+                                ns_window_ptr as *mut std::ffi::c_void,
+                                panel_class as *const AnyClass as *const std::ffi::c_void,
+                            );
+
+                            // Set panel-specific properties
+                            let ns_panel = &*(ns_window_ptr as *const NSPanel);
+                            ns_panel.setFloatingPanel(true);
+                            ns_panel.setBecomesKeyOnlyIfNeeded(true);
+
+                            // NonactivatingPanel is critical for floating panels in fullscreen
+                            let ns_win = &*(ns_window_ptr as *const NSWindow);
+                            let mask = ns_win.styleMask();
+                            ns_win.setStyleMask(mask | NSWindowStyleMask::NonactivatingPanel);
+
+                            tracing::info!("[Capsule] converted NSWindow → NSPanel (floatingPanel=true, nonactivating)");
+                        } else {
+                            tracing::warn!("[Capsule] NSPanel class not found — skipping panel conversion");
+                        }
+
+                        let ns_window = &*(ns_window_ptr as *const NSWindow);
+                        let behavior = NSWindowCollectionBehavior::CanJoinAllSpaces
+                            | NSWindowCollectionBehavior::FullScreenAuxiliary
+                            | NSWindowCollectionBehavior::IgnoresCycle;
+                        ns_window.setCollectionBehavior(behavior);
+                        ns_window.setLevel(NSScreenSaverWindowLevel);
+
+                        // Use CoreGraphics private API to tag window as "sticky"
+                        // (appears on ALL workspaces including fullscreen Spaces).
+                        // AppKit's canJoinAllSpaces does NOT work for fullscreen Spaces
+                        // on Monterey/Intel. CGS operates at the compositor level and
+                        // is used by apps like Rectangle, Hammerspoon, Tencent Meeting, etc.
+                        crate::cgs_move_to_active_space(ns_window);
+
+                        let actual_level = ns_window.level();
+                        let actual_behavior = ns_window.collectionBehavior();
+                        tracing::info!(
+                            "[Capsule] window level={} (expected={}), collectionBehavior={:?}",
+                            actual_level,
+                            NSScreenSaverWindowLevel,
+                            actual_behavior,
+                        );
+                    }
+                } else {
+                    tracing::warn!("[Capsule] ns_window() failed — cannot set level/behavior");
+                }
+            } else {
+                tracing::warn!("[Capsule] window not found at setup");
+            }
+
+            // Register space-change observer so the capsule re-raises when entering/leaving fullscreen.
+            #[cfg(target_os = "macos")]
+            register_space_observer(app);
+
+            // Log capsule position every time it becomes visible
+            if let Some(capsule) = app.get_webview_window("capsule") {
+                let handle = app.handle().clone();
+                capsule.on_window_event(move |event| {
+                    if matches!(event, tauri::WindowEvent::Focused(true)) {
+                        if let Some(w) = handle.get_webview_window("capsule") {
+                            let pos = w.outer_position().ok();
+                            let size = w.outer_size().ok();
+                            let visible = w.is_visible().unwrap_or(false);
+                            tracing::info!(
+                                "[Capsule position] visible={visible} pos={pos:?} size={size:?}"
+                            );
+                        }
+                    }
+                });
+            }
+
             let app_handle = app.handle().clone();
 
             // Initialize data directory and database
@@ -1087,19 +1805,24 @@ pub fn run() {
             // Load initial config to get hotkey
             let initial_config =
                 tauri::async_runtime::block_on(config_manager.load()).unwrap_or_default();
-            let shortcut = parse_hotkey(&initial_config.hotkey).unwrap_or_else(default_shortcut);
+
+            let fn_hotkey_enabled = Arc::new(AtomicBool::new(initial_config.hotkey == "Fn"));
+            let fn_hotkey_recording = Arc::new(AtomicBool::new(false));
 
             app.manage(config_manager);
             app.manage(history_store);
             app.manage(dictionary_store);
             app.manage(pipeline_handle);
-            app.manage(HotkeyModeCache(Arc::new(Mutex::new(
-                initial_config.hotkey_mode.clone(),
-            ))));
             app.manage(CloseToTrayCache(Arc::new(Mutex::new(
                 initial_config.close_to_tray,
             ))));
             app.manage(SessionTokenStore(Arc::new(Mutex::new(String::new()))));
+            app.manage(FnHotkeyState {
+                enabled: fn_hotkey_enabled.clone(),
+                recording: fn_hotkey_recording.clone(),
+            });
+            let translate_hotkey_arc = Arc::new(Mutex::new(initial_config.translate_hotkey.clone()));
+            app.manage(TranslateHotkeyCache(translate_hotkey_arc.clone()));
 
             // Sync auto-start state with system
             {
@@ -1113,19 +1836,38 @@ pub fn run() {
                 }
             }
 
-            // Register global shortcut from config
-            let handler = build_shortcut_handler(app_handle.clone());
+            // Register global shortcut from config (skip for Fn key — handled via CGEventTap)
+            let handler = build_shortcut_handler(app_handle.clone(), translate_hotkey_arc);
             app.handle().plugin(
                 tauri_plugin_global_shortcut::Builder::new()
                     .with_handler(handler)
                     .build(),
             )?;
-            if let Err(e) = app.global_shortcut().register(shortcut) {
-                tracing::warn!(
-                    "Failed to register shortcut '{}' (may be occupied): {e}",
-                    initial_config.hotkey
-                );
+            if initial_config.hotkey != "Fn" {
+                let shortcut =
+                    parse_hotkey(&initial_config.hotkey).unwrap_or_else(default_shortcut);
+                if let Err(e) = app.global_shortcut().register(shortcut) {
+                    tracing::warn!(
+                        "Failed to register shortcut '{}' (may be occupied): {e}",
+                        initial_config.hotkey
+                    );
+                }
             }
+
+            // Register translate hotkey if configured
+            if !initial_config.translate_hotkey.is_empty() {
+                if let Some(t_shortcut) = parse_hotkey(&initial_config.translate_hotkey) {
+                    if let Err(e) = app.global_shortcut().register(t_shortcut) {
+                        tracing::warn!(
+                            "Failed to register translate shortcut '{}': {e}",
+                            initial_config.translate_hotkey
+                        );
+                    }
+                }
+            }
+
+            // Register CGEventTap for Fn/Globe key (runs on main RunLoop — no TSM threading issues)
+            register_fn_key_tap(app_handle.clone(), fn_hotkey_enabled, fn_hotkey_recording);
 
             // System tray
             let tray_menu = build_tray_menu(&app_handle, false, true)
@@ -1330,10 +2072,15 @@ pub fn run() {
             update_hotkey,
             pause_hotkey,
             resume_hotkey,
+            update_translate_hotkey,
+            force_idle,
+            start_recording_translate,
             set_auto_start,
             set_session_token,
             request_accessibility_permission,
             open_accessibility_settings,
+            debug_capsule_window,
+            bring_capsule_to_front,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

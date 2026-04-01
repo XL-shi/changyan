@@ -35,6 +35,9 @@ pub struct PolishRequest {
     pub translate_enabled: bool,
     pub target_lang: String,
     pub selected_text: Option<String>,
+    /// Recent polished outputs for this app context, used as style few-shot examples.
+    #[serde(default)]
+    pub style_examples: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

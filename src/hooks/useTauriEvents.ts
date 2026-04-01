@@ -13,7 +13,9 @@ export function useTauriEvents() {
     setPipelineState,
     setTargetApp,
     setPipelineError,
+    setCopyReadyText,
     setHistory,
+    setIsTranslateSession,
   } = useAppStore()
 
   useEffect(() => {
@@ -41,6 +43,7 @@ export function useTauriEvents() {
     addListener<PipelineState>('pipeline:state', (state) => {
       setPipelineState(state)
       if (state === 'idle') {
+        setIsTranslateSession(false)
         getHistory(200, 0)
           .then(setHistory)
           .catch((err) => {
@@ -48,8 +51,12 @@ export function useTauriEvents() {
           })
       }
     })
+    addListener<void>('pipeline:translate_session', () => {
+      setIsTranslateSession(true)
+    })
     addListener<string>('pipeline:target_app', setTargetApp)
     addListener<string>('pipeline:error', setPipelineError)
+    addListener<string>('pipeline:copy_ready', setCopyReadyText)
 
     addListener<void>('tray:settings', () => {
       window.location.hash = '#/settings'
@@ -76,6 +83,8 @@ export function useTauriEvents() {
     setPipelineState,
     setTargetApp,
     setPipelineError,
+    setCopyReadyText,
     setHistory,
+    setIsTranslateSession,
   ])
 }

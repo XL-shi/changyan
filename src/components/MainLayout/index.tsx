@@ -1,9 +1,9 @@
-import { Home, Settings, History, /*Crown,*/ CircleUser } from 'lucide-react'
+import { Home, Settings, History /*Crown, CircleUser*/ } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { spring } from '../../lib/animations'
 import { useRoute, type Route } from '../../lib/router'
-import { useAuthStore } from '../../stores/authStore'
+// import { useAuthStore } from '../../stores/authStore'
 
 const baseNavItems: { id: Route; labelKey: string; icon: typeof Home }[] = [
   { id: 'home', labelKey: 'nav.home', icon: Home },
@@ -11,7 +11,7 @@ const baseNavItems: { id: Route; labelKey: string; icon: typeof Home }[] = [
   { id: 'history', labelKey: 'nav.history', icon: History },
 ]
 
-const bottomNavItem = { id: 'account' as Route, labelKey: 'nav.account', icon: CircleUser }
+// const bottomNavItem = { id: 'account' as Route, labelKey: 'nav.account', icon: CircleUser }
 
 interface Props {
   children: React.ReactNode
@@ -19,7 +19,7 @@ interface Props {
 
 export function MainLayout({ children }: Props) {
   const { route, navigate } = useRoute()
-  const { /*plan*/ } = useAuthStore()
+  // const { /*plan*/ } = useAuthStore()
   const { t } = useTranslation()
   // const isPro = plan === 'pro'
 
@@ -101,8 +101,8 @@ export function MainLayout({ children }: Props) {
           })()*/}
         </nav>
 
-        {/* Bottom: Account */}
-        <div className="px-3 pb-3 mt-auto border-t border-border pt-3">
+        {/* Bottom: Account — temporarily hidden */}
+        {/*<div className="px-3 pb-3 mt-auto border-t border-border pt-3">
           {(() => {
             const { id, labelKey, icon: Icon } = bottomNavItem
             const active = route === id
@@ -133,7 +133,7 @@ export function MainLayout({ children }: Props) {
               </motion.button>
             )
           })()}
-        </div>
+        </div>*/}
       </aside>
 
       {/* Content */}

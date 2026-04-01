@@ -27,6 +27,8 @@ pub struct AppConfig {
     pub close_to_tray: bool,
     pub start_minimized: bool,
     pub max_recording_seconds: u32,
+    pub translate_hotkey: String,
+    pub ui_language: String,
 }
 
 impl Default for AppConfig {
@@ -51,6 +53,8 @@ impl Default for AppConfig {
             close_to_tray: true,
             start_minimized: false,
             max_recording_seconds: 30,
+            translate_hotkey: String::new(),
+            ui_language: "en".to_string(),
         }
     }
 }
@@ -192,6 +196,25 @@ impl HistoryStore {
             entries.push(row?);
         }
         Ok(entries)
+    }
+
+    /// Returns the most recent polished texts for the given app type, for style few-shot examples.
+    pub async fn recent_polished_by_app_type(&self, app_type: &str, limit: u32) -> Vec<String> {
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        let mut stmt = match conn.prepare(
+            "SELECT polished_text FROM history WHERE app_type = ?1 AND polished_text != ''
+             ORDER BY id DESC LIMIT ?2",
+        ) {
+            Ok(s) => s,
+            Err(_) => return Vec::new(),
+        };
+        let rows = match stmt.query_map(rusqlite::params![app_type, limit], |row| {
+            row.get::<_, String>(0)
+        }) {
+            Ok(r) => r,
+            Err(_) => return Vec::new(),
+        };
+        rows.filter_map(|r| r.ok()).collect()
     }
 
     pub async fn clear(&self) -> Result<()> {

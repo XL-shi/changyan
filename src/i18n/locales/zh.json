@@ -116,12 +116,15 @@
   },
   "capsule": {
     "cancelRecording": "取消录音",
+    "confirmRecording": "停止并转录",
+    "recordingCancelled": "转录已取消",
     "transcribing": "转录中...",
     "cancelProcessing": "取消处理",
     "thinking": "思考中...",
     "cancelPolishing": "取消润色",
     "done": "完成",
     "errorOccurred": "发生错误",
+    "translatingTo": "正在翻译为 {{lang}}",
     "openMainWindow": "打开主窗口",
     "settings": "设置",
     "history": "历史记录",
@@ -139,7 +142,9 @@
     "about": "关于",
     "hotkey": "快捷键",
     "pressKeyCombination": "按下组合键...",
+    "pressKeyCombinationHint": "按下任意键或 Fn / Globe",
     "clickToConfirm": "再次点击确认，或按下其他组合键",
+    "useFnKey": "使用 Fn / Globe 键",
     "holdToTalk": "按住说话",
     "toggleOnOff": "切换开/关",
     "outputMode": "输出模式",
@@ -189,7 +194,17 @@
     "tauriReact": "Tauri v2 + React",
     "view": "查看",
     "maxRecordingDuration": "最大录音时长",
-    "uiLanguage": "界面语言"
+    "uiLanguage": "界面语言",
+    "uiLanguageDesc": "选择用户界面使用的语言。",
+    "keyboardShortcuts": "键盘快捷键",
+    "voiceInputHotkey": "语音输入",
+    "voiceInputHotkeyDesc": "按下开始和停止语音输入",
+    "translateHotkey": "翻译",
+    "translateHotkeyDesc": "按下开始和停止翻译。",
+    "translateTarget": "翻译目标",
+    "translateTargetDesc": "选择翻译模式下的听写目标语言。",
+    "languageSection": "语言",
+    "clickToSet": "点击设置"
   },
   "dictionary": {
     "word": "词语",
@@ -270,6 +285,11 @@
     "oauthPendingDesc": "请在浏览器中完成登录，完成后将自动返回。",
     "oauthTimeout": "登录超时，请重试。",
     "cancel": "取消"
+  },
+  "copyDialog": {
+    "title": "复制最后的转录",
+    "copy": "复制",
+    "copied": "已复制"
   },
   "pipeline": {
     "error": {

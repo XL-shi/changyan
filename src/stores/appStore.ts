@@ -66,6 +66,7 @@ export interface AppConfig {
   close_to_tray: boolean
   start_minimized: boolean
   max_recording_seconds: number
+  translate_hotkey: string
 }
 
 export type TestStatus = 'idle' | 'testing' | 'success' | 'error'
@@ -135,11 +136,23 @@ interface AppState {
   pipelineError: string | null
   setPipelineError: (error: string | null) => void
 
+  // Copy ready dialog (shown when keyboard output fails due to no focus/accessibility)
+  copyReadyText: string | null
+  setCopyReadyText: (text: string | null) => void
+
   // Context menu
   contextMenuOpen: boolean
   setContextMenuOpen: (open: boolean) => void
   contextMenuReady: boolean
   setContextMenuReady: (ready: boolean) => void
+
+  // Translate session — true when the current recording was triggered by the translate hotkey
+  isTranslateSession: boolean
+  setIsTranslateSession: (v: boolean) => void
+
+  // Capsule toast — short message shown above the capsule pill (null = hidden)
+  capsuleToast: string | null
+  setCapsuleToast: (msg: string | null) => void
 
   // Reset recording state
   resetRecording: () => void
@@ -171,6 +184,7 @@ const defaultConfig: AppConfig = {
   close_to_tray: true,
   start_minimized: false,
   max_recording_seconds: 30,
+  translate_hotkey: '',
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -227,10 +241,19 @@ export const useAppStore = create<AppState>((set) => ({
   pipelineError: null,
   setPipelineError: (pipelineError) => set({ pipelineError }),
 
+  copyReadyText: null,
+  setCopyReadyText: (copyReadyText) => set({ copyReadyText }),
+
   contextMenuOpen: false,
   setContextMenuOpen: (contextMenuOpen) => set({ contextMenuOpen }),
   contextMenuReady: false,
   setContextMenuReady: (contextMenuReady) => set({ contextMenuReady }),
+
+  isTranslateSession: false,
+  setIsTranslateSession: (isTranslateSession) => set({ isTranslateSession }),
+
+  capsuleToast: null,
+  setCapsuleToast: (capsuleToast) => set({ capsuleToast }),
 
   resetRecording: () =>
     set({
@@ -239,6 +262,8 @@ export const useAppStore = create<AppState>((set) => ({
       finalTranscript: '',
       polishedText: '',
       recordingDuration: 0,
+      isTranslateSession: false,
+      capsuleToast: null,
     }),
 
   savedConfig: null,

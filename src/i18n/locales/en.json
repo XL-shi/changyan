@@ -116,12 +116,15 @@
   },
   "capsule": {
     "cancelRecording": "Cancel recording",
+    "confirmRecording": "Stop and transcribe",
+    "recordingCancelled": "Recording cancelled",
     "transcribing": "Transcribing...",
     "cancelProcessing": "Cancel processing",
     "thinking": "Thinking...",
     "cancelPolishing": "Cancel polishing",
     "done": "Done",
     "errorOccurred": "An error occurred",
+    "translatingTo": "Translating to {{lang}}",
     "openMainWindow": "Open Main Window",
     "settings": "Settings",
     "history": "History",
@@ -139,7 +142,9 @@
     "about": "About",
     "hotkey": "Hotkey",
     "pressKeyCombination": "Press a key combination...",
+    "pressKeyCombinationHint": "Press any key or Fn / Globe",
     "clickToConfirm": "Click again to confirm, or press another combination",
+    "useFnKey": "Use Fn / Globe key",
     "holdToTalk": "Hold to Talk",
     "toggleOnOff": "Toggle On/Off",
     "outputMode": "Output Mode",
@@ -189,7 +194,17 @@
     "tauriReact": "Tauri v2 + React",
     "view": "View",
     "maxRecordingDuration": "Max Recording Duration",
-    "uiLanguage": "Interface Language"
+    "uiLanguage": "Interface Language",
+    "uiLanguageDesc": "Select the language used in the user interface.",
+    "keyboardShortcuts": "Keyboard Shortcuts",
+    "voiceInputHotkey": "Voice Input",
+    "voiceInputHotkeyDesc": "Press to start and stop voice input",
+    "translateHotkey": "Translation",
+    "translateHotkeyDesc": "Press to start and stop translation.",
+    "translateTarget": "Translation Target",
+    "translateTargetDesc": "Select the target language for dictation in translation mode.",
+    "languageSection": "Language",
+    "clickToSet": "Click to set"
   },
   "dictionary": {
     "word": "Word",
@@ -270,6 +285,11 @@
     "oauthPendingDesc": "Finish signing in with your browser. You'll be redirected back automatically.",
     "oauthTimeout": "Sign in timed out. Please try again.",
     "cancel": "Cancel"
+  },
+  "copyDialog": {
+    "title": "Copy Last Transcription",
+    "copy": "Copy",
+    "copied": "Copied"
   },
   "pipeline": {
     "error": {
