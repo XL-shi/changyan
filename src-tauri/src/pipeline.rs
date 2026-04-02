@@ -310,7 +310,10 @@ impl PipelineHandle {
         );
 
         // Guard: empty API key — bail before starting audio (skip for cloud provider)
-        if config_data.stt_api_key.is_empty() && config_data.stt_provider != "cloud" {
+        if config_data.stt_api_key.is_empty()
+            && config_data.stt_provider != "cloud"
+            && config_data.stt_provider != "sensevoice-local"
+        {
             let _ = self.app_handle.emit(
                 "pipeline:error",
                 "STT API key is not configured. Please set it in Settings → Speech Recognition.",
@@ -354,8 +357,12 @@ impl PipelineHandle {
             sample_rate: 16000,
         };
 
-        let mut provider =
-            stt::create_provider(&config_data.stt_provider, Some(self.shared_client.clone()));
+        let app_data_dir = self.app_handle.path().app_data_dir().ok();
+        let mut provider = stt::create_provider(
+            &config_data.stt_provider,
+            Some(self.shared_client.clone()),
+            app_data_dir,
+        );
         if let Err(e) = provider.connect(&stt_config).await {
             tracing::error!("STT connect failed: {}", e);
             let _ = self

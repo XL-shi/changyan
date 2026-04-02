@@ -1,6 +1,7 @@
 pub mod app_detector;
 pub mod audio;
 pub mod llm;
+pub mod model_manager;
 pub mod output;
 pub mod pipeline;
 pub mod storage;
@@ -2100,6 +2101,9 @@ pub fn run() {
             open_accessibility_settings,
             debug_capsule_window,
             bring_capsule_to_front,
+            model_manager::get_sensevoice_model_status,
+            model_manager::download_sensevoice_model,
+            model_manager::delete_sensevoice_model,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

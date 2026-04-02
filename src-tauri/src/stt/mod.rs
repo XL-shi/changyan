@@ -1,6 +1,7 @@
 pub mod assemblyai;
 pub mod cloud;
 pub mod deepgram;
+pub mod sensevoice_local;
 pub mod whisper_compat;
 
 use anyhow::Result;
@@ -50,6 +51,7 @@ pub trait SttProvider: Send + Sync {
 pub fn create_provider(
     provider_name: &str,
     client: Option<reqwest::Client>,
+    app_data_dir: Option<std::path::PathBuf>,
 ) -> Box<dyn SttProvider> {
     let make = |cfg: WhisperCompatConfig| -> Box<dyn SttProvider> {
         match client {
@@ -93,6 +95,12 @@ pub fn create_provider(
             model: "FunAudioLLM/SenseVoiceSmall",
             extra_fields: &[],
         }),
+        "sensevoice-local" => {
+            let model_dir = app_data_dir
+                .map(|d| d.join("models").join("sensevoice-small"))
+                .unwrap_or_else(|| std::path::PathBuf::from("models/sensevoice-small"));
+            Box::new(sensevoice_local::SenseVoiceLocalProvider::new(model_dir))
+        }
         _ => make(WhisperCompatConfig {
             provider_name: "GLM-ASR",
             endpoint: "https://open.bigmodel.cn/api/paas/v4/audio/transcriptions",
