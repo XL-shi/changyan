@@ -212,7 +212,9 @@
     "modelNotDownloaded": "First use requires downloading model files (~360 MB)",
     "downloadModel": "Download Model",
     "downloadingModel": "Downloading",
-    "senseVoiceDeleteConfirm": "Delete model files? You will need to re-download to use local recognition."
+    "senseVoiceDeleteConfirm": "Delete model files? You will need to re-download to use local recognition.",
+    "localModelRequiresMacOs13": "Local inference requires macOS 13 (Ventura) or higher.",
+    "localModelCurrentOs": "Current OS"
   },
   "dictionary": {
     "word": "Word",

@@ -212,7 +212,9 @@
     "modelNotDownloaded": "首次使用需下载模型文件（约 360 MB）",
     "downloadModel": "下载模型",
     "downloadingModel": "正在下载",
-    "senseVoiceDeleteConfirm": "确定删除模型文件？删除后需重新下载才能使用本地识别。"
+    "senseVoiceDeleteConfirm": "确定删除模型文件？删除后需重新下载才能使用本地识别。",
+    "localModelRequiresMacOs13": "本地推理需要 macOS 13 (Ventura) 或更高版本。",
+    "localModelCurrentOs": "当前系统"
   },
   "dictionary": {
     "word": "词语",
