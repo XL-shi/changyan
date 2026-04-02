@@ -34,6 +34,9 @@ struct FnHotkeyState {
     /// True while the user is recording a new hotkey in Settings — tap emits
     /// `hotkey:fn_detected` instead of driving the pipeline.
     recording: Arc<AtomicBool>,
+    /// True when translate hotkey is "Fn+Shift" — Fn+Shift triggers translate session
+    /// instead of normal recording.
+    fn_translate: Arc<AtomicBool>,
 }
 
 /// Cached close_to_tray setting to avoid blocking I/O in the window close handler.
@@ -1091,7 +1094,11 @@ async fn update_translate_hotkey(
     }
 
     // Register new translate hotkey (empty = clear)
-    if !hotkey.is_empty() {
+    // "Fn+Shift" is handled by CGEventTap — no global shortcut registration needed
+    fn_state
+        .fn_translate
+        .store(hotkey == "Fn+Shift", Ordering::Relaxed);
+    if !hotkey.is_empty() && hotkey != "Fn+Shift" {
         let t_shortcut =
             parse_hotkey(&hotkey).ok_or_else(|| format!("Invalid hotkey: {}", hotkey))?;
         app.global_shortcut()
@@ -1162,6 +1169,7 @@ fn register_fn_key_tap(
     app_handle: tauri::AppHandle,
     enabled: Arc<AtomicBool>,
     recording: Arc<AtomicBool>,
+    fn_translate: Arc<AtomicBool>,
 ) {
     use std::ffi::c_void;
 
@@ -1222,6 +1230,8 @@ fn register_fn_key_tap(
     const CG_KEYBOARD_EVENT_KEYCODE: u32 = 9;
     // kCGEventFlagMaskSecondaryFn = Fn modifier bit
     const CG_FLAG_FN: u64 = 0x0080_0000;
+    // kCGEventFlagMaskShift
+    const CG_FLAG_SHIFT: u64 = 0x0002_0000;
     // kVK_Function = 63 (Intel/older), Globe key = 179 (Apple Silicon)
     const FN_KEYCODE: i64 = 63;
     const GLOBE_KEYCODE: i64 = 179;
@@ -1234,23 +1244,26 @@ fn register_fn_key_tap(
 
     // ── Processing thread ────────────────────────────────────────────────────
     // Fn/Globe key ALWAYS uses toggle semantics regardless of hotkey_mode:
-    // - tap when idle   → start recording
+    // - tap when idle   → start recording (or translate session if is_translate)
     // - tap when recording → stop (finalize)
     // - tap when stuck  → force cancel back to idle
-    // Releases are ignored entirely (Fn is a tap key, not a hold key).
+    // Channel sends bool: true = translate session (Fn+Shift), false = normal recording.
     let (tx, rx) = std::sync::mpsc::channel::<bool>();
     std::thread::spawn({
         let app_handle = app_handle.clone();
         move || {
-            for is_press in rx {
-                if !is_press {
-                    continue; // ignore Fn key releases
-                }
+            for is_translate in rx {
                 let h = app_handle.clone();
                 tauri::async_runtime::spawn(async move {
                     let pipeline = h.state::<pipeline::PipelineHandle>();
                     match pipeline.current_state() {
                         pipeline::PipelineState::Idle => {
+                            if is_translate {
+                                pipeline
+                                    .translate_session
+                                    .store(true, std::sync::atomic::Ordering::Relaxed);
+                                let _ = h.emit("pipeline:translate_session", ());
+                            }
                             if let Err(e) = pipeline.start().await {
                                 tracing::error!("Fn key start: {e}");
                                 let _ = h.emit("pipeline:error", e.to_string());
@@ -1277,12 +1290,14 @@ fn register_fn_key_tap(
         enabled: Arc<AtomicBool>,
         /// True while the user is recording a hotkey in Settings UI.
         recording: Arc<AtomicBool>,
+        /// True when translate hotkey is "Fn+Shift" — Fn+Shift triggers translate session.
+        fn_translate: Arc<AtomicBool>,
         fn_pressed: AtomicBool,
-        /// Milliseconds of last sent `true` event (for debounce).
+        /// Milliseconds of last sent event (for debounce).
         /// On Intel Macs, one physical Fn keypress can generate the sequence
         /// FlagsChanged(down) → FlagsChanged(up) → FlagsChanged(down) in rapid
         /// succession, causing a spurious second press event. We suppress any
-        /// `true` send within 300 ms of the previous one.
+        /// send within 300 ms of the previous one.
         last_press_ms: std::sync::atomic::AtomicU64,
         tx: std::sync::mpsc::Sender<bool>,
         app_handle: tauri::AppHandle,
@@ -1317,9 +1332,10 @@ fn register_fn_key_tap(
             return event;
         }
 
-        // Helper: send a debounced "press" signal.
+        // Helper: send a debounced press signal.
+        // is_translate = true when Shift is held and fn_translate is enabled.
         // Returns true if the signal was actually sent (not throttled).
-        let try_send_press = |state: &TapState| -> bool {
+        let try_send_press = |state: &TapState, flags: u64| -> bool {
             let now_ms = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
@@ -1329,14 +1345,18 @@ fn register_fn_key_tap(
                 return false; // within debounce window — suppress
             }
             state.last_press_ms.store(now_ms, Ordering::Relaxed);
-            let _ = state.tx.send(true);
+            let shift_held = flags & CG_FLAG_SHIFT != 0;
+            let is_translate =
+                shift_held && state.fn_translate.load(Ordering::Relaxed);
+            let _ = state.tx.send(is_translate);
             true
         };
 
         match event_type {
             CG_EVENT_KEY_DOWN if keycode == GLOBE_KEYCODE => {
                 if !state.fn_pressed.swap(true, Ordering::Relaxed) {
-                    try_send_press(state);
+                    let flags = CGEventGetFlags(event);
+                    try_send_press(state, flags);
                 }
             }
             CG_EVENT_KEY_UP if keycode == GLOBE_KEYCODE => {
@@ -1345,10 +1365,11 @@ fn register_fn_key_tap(
             CG_EVENT_FLAGS_CHANGED if keycode == FN_KEYCODE => {
                 // Fn key on Intel Macs generates FlagsChanged; flag bit indicates
                 // pressed/released. Debounce prevents spurious OS double-events.
-                let fn_down = CGEventGetFlags(event) & CG_FLAG_FN != 0;
+                let flags = CGEventGetFlags(event);
+                let fn_down = flags & CG_FLAG_FN != 0;
                 if fn_down {
                     if !state.fn_pressed.swap(true, Ordering::Relaxed) {
-                        try_send_press(state);
+                        try_send_press(state, flags);
                     }
                 } else {
                     state.fn_pressed.store(false, Ordering::Relaxed);
@@ -1368,6 +1389,7 @@ fn register_fn_key_tap(
             let state = Box::new(TapState {
                 enabled,
                 recording,
+                fn_translate,
                 fn_pressed: AtomicBool::new(false),
                 last_press_ms: std::sync::atomic::AtomicU64::new(0),
                 tx,
@@ -1408,6 +1430,7 @@ fn register_fn_key_tap(
     _app_handle: tauri::AppHandle,
     _enabled: Arc<AtomicBool>,
     _recording: Arc<AtomicBool>,
+    _fn_translate: Arc<AtomicBool>,
 ) {
 }
 
@@ -1831,6 +1854,8 @@ pub fn run() {
 
             let fn_hotkey_enabled = Arc::new(AtomicBool::new(initial_config.hotkey == "Fn"));
             let fn_hotkey_recording = Arc::new(AtomicBool::new(false));
+            let fn_hotkey_translate =
+                Arc::new(AtomicBool::new(initial_config.translate_hotkey == "Fn+Shift"));
 
             app.manage(config_manager);
             app.manage(history_store);
@@ -1843,6 +1868,7 @@ pub fn run() {
             app.manage(FnHotkeyState {
                 enabled: fn_hotkey_enabled.clone(),
                 recording: fn_hotkey_recording.clone(),
+                fn_translate: fn_hotkey_translate.clone(),
             });
             let translate_hotkey_arc = Arc::new(Mutex::new(initial_config.translate_hotkey.clone()));
             app.manage(TranslateHotkeyCache(translate_hotkey_arc.clone()));
@@ -1877,8 +1903,10 @@ pub fn run() {
                 }
             }
 
-            // Register translate hotkey if configured
-            if !initial_config.translate_hotkey.is_empty() {
+            // Register translate hotkey if configured (skip "Fn+Shift" — handled by CGEventTap)
+            if !initial_config.translate_hotkey.is_empty()
+                && initial_config.translate_hotkey != "Fn+Shift"
+            {
                 if let Some(t_shortcut) = parse_hotkey(&initial_config.translate_hotkey) {
                     if let Err(e) = app.global_shortcut().register(t_shortcut) {
                         tracing::warn!(
@@ -1890,7 +1918,12 @@ pub fn run() {
             }
 
             // Register CGEventTap for Fn/Globe key (runs on main RunLoop — no TSM threading issues)
-            register_fn_key_tap(app_handle.clone(), fn_hotkey_enabled, fn_hotkey_recording);
+            register_fn_key_tap(
+                app_handle.clone(),
+                fn_hotkey_enabled,
+                fn_hotkey_recording,
+                fn_hotkey_translate,
+            );
 
             // System tray
             let tray_menu = build_tray_menu(&app_handle, false, true)

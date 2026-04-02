@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Check, Keyboard, MousePointerClick, GripHorizontal, MousePointer } from 'lucide-react'
+import { Check } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../../stores/appStore'
 
@@ -27,56 +27,72 @@ export function DoneStep() {
 
       <div className="text-center">
         <h2 className="text-[17px] font-semibold text-text-primary">{t('onboarding.allSet')}</h2>
-        <p className="text-[13px] text-text-secondary mt-1">
+        {/* <p className="text-[13px] text-text-secondary mt-1">
           {t('onboarding.capsuleOnDesktop')}
-        </p>
+        </p> */}
       </div>
 
       {/* Usage tips */}
       <div className="w-full space-y-3">
-        <Tip
-          icon={Keyboard}
-          title={`${config.hotkey_mode === 'hold' ? t('onboarding.hold') : t('onboarding.press')} ${config.hotkey}`}
-          desc={config.hotkey_mode === 'hold' ? t('onboarding.tipHotkeyHold') : t('onboarding.tipHotkeyToggle')}
+        <ShortcutTip
+          title={t('settings.voiceInputHotkey')}
+          desc={t('settings.voiceInputHotkeyDesc')}
+          hotkey={config.hotkey}
         />
-        <Tip
-          icon={MousePointerClick}
-          title={t('onboarding.tipClickCapsule')}
-          desc={t('onboarding.tipClickCapsuleDesc')}
-        />
-        <Tip
-          icon={GripHorizontal}
-          title={t('onboarding.tipDrag')}
-          desc={t('onboarding.tipDragDesc')}
-        />
-        <Tip
-          icon={MousePointer}
-          title={t('onboarding.tipRightClick')}
-          desc={t('onboarding.tipRightClickDesc')}
+        <ShortcutTip
+          title={t('settings.translateHotkey')}
+          desc={t('settings.translateHotkeyDesc')}
+          hotkey={config.translate_hotkey}
         />
       </div>
     </div>
   )
 }
 
-function Tip({
-  icon: Icon,
+function ShortcutTip({
   title,
   desc,
+  hotkey,
 }: {
-  icon: React.ComponentType<{ size?: number; className?: string }>
   title: string
   desc: string
+  hotkey?: string
 }) {
+  const chips = parseHotkeyChips(hotkey)
+
   return (
-    <div className="flex items-center gap-3 px-4 py-3 bg-bg-secondary rounded-[10px]">
-      <div className="p-1.5 rounded-[8px] bg-bg-tertiary text-text-tertiary shrink-0">
-        <Icon size={14} />
-      </div>
-      <div>
+    <div className="flex items-center justify-between gap-3 px-4 py-3 bg-bg-secondary rounded-[10px]">
+      <div className="min-w-0">
         <p className="text-[13px] font-medium text-text-primary">{title}</p>
         <p className="text-[11px] text-text-tertiary">{desc}</p>
       </div>
+      <div className="flex items-center gap-1.5 shrink-0">
+        {chips.length ? (
+          chips.map((chip) => (
+            <span
+              key={`${title}-${chip}`}
+              className="px-2.5 py-1 rounded-[10px] text-[16px] font-mono bg-bg-tertiary border border-border text-text-primary leading-none"
+            >
+              {chip}
+            </span>
+          ))
+        ) : (
+          <span className="px-2.5 py-1 rounded-[10px] text-[12px] bg-bg-tertiary border border-border text-text-tertiary leading-none">
+            -
+          </span>
+        )}
+      </div>
     </div>
   )
+}
+
+function parseHotkeyChips(hotkey?: string): string[] {
+  if (!hotkey) return []
+  return hotkey.split('+').map((part) => normalizeHotkeyPart(part.trim()))
+}
+
+function normalizeHotkeyPart(part: string): string {
+  if (!part) return part
+  if (part.toLowerCase() === 'fn') return 'Fn'
+  return part.length === 1 ? part.toUpperCase() : part[0].toUpperCase() + part.slice(1)
 }

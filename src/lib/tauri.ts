@@ -109,6 +109,8 @@ export async function setAutoStart(enabled: boolean): Promise<void> {
 
 // Onboarding persistence via tauri-plugin-store
 export async function loadOnboardingCompleted(): Promise<boolean> {
+  // Allow forcing onboarding in dev mode via VITE_INIT_ONBOARDING=true
+  if (import.meta.env.VITE_INIT_ONBOARDING === 'true') return false
   try {
     const { load } = await import('@tauri-apps/plugin-store')
     const store = await load('settings.json')

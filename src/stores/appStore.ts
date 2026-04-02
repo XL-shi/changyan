@@ -165,18 +165,18 @@ interface AppState {
 }
 
 const defaultConfig: AppConfig = {
-  stt_provider: 'glm-asr',
+  stt_provider: 'sensevoice-local',
   stt_api_key: '',
   stt_language: 'multi',
-  llm_provider: 'openrouter',
-  llm_api_key: '',
-  llm_model: 'google/gemini-2.5-flash',
-  llm_base_url: 'https://openrouter.ai/api/v1',
+  llm_provider: 'qwen',
+  llm_api_key: import.meta.env.VITE_DEFAULT_LLM_API_KEY ?? '',
+  llm_model: 'qwen-turbo',
+  llm_base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
   polish_enabled: true,
   translate_enabled: false,
   target_lang: 'en',
-  hotkey: 'Ctrl+/',
-  hotkey_mode: 'hold',
+  hotkey: 'Fn',
+  hotkey_mode: 'toggle',
   output_mode: 'keyboard',
   selected_text_enabled: false,
   theme: 'system',
@@ -185,7 +185,7 @@ const defaultConfig: AppConfig = {
   close_to_tray: true,
   start_minimized: false,
   max_recording_seconds: 30,
-  translate_hotkey: '',
+  translate_hotkey: 'Fn+Shift',
 }
 
 export const useAppStore = create<AppState>((set) => ({

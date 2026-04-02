@@ -11,6 +11,7 @@ name = "changyan_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [features]
+default = ["local-stt"]
 devtools = ["tauri/devtools"]
 local-stt = ["dep:sherpa-onnx"]
 

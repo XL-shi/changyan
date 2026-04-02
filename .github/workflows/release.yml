@@ -66,4 +66,4 @@ jobs:
           releaseBody: 'See the assets below to download and install.'
           releaseDraft: true
           prerelease: false
-          args: ${{ matrix.args }} --features local-stt
+          args: ${{ matrix.args }}
