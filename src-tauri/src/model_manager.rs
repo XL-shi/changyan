@@ -5,8 +5,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use tokio::io::AsyncWriteExt;
 
 const MODEL_TARBALL_URL: &str = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17.tar.bz2";
-const _TARBALL_DIR_PREFIX: &str =
-    "sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17";
+const _TARBALL_DIR_PREFIX: &str = "sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17";
 
 pub fn sensevoice_model_dir(app: &AppHandle) -> PathBuf {
     app.path()

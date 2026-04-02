@@ -72,10 +72,20 @@ pub fn build_system_prompt(
     }
 
     if !style_examples.is_empty() {
-        prompt.push_str("\n\nSTYLE REFERENCE — Your recent outputs for this context. Match this writing style:");
+        prompt.push_str(
+            "\n\nSTYLE REFERENCE — Your recent outputs for this context. Match this writing style:",
+        );
         for (i, example) in style_examples.iter().take(3).enumerate() {
             let truncated = if example.len() > 200 {
-                format!("{}…", &example[..example.char_indices().take_while(|(i, _)| *i < 200).last().map(|(i, c)| i + c.len_utf8()).unwrap_or(200)])
+                format!(
+                    "{}…",
+                    &example[..example
+                        .char_indices()
+                        .take_while(|(i, _)| *i < 200)
+                        .last()
+                        .map(|(i, c)| i + c.len_utf8())
+                        .unwrap_or(200)]
+                )
             } else {
                 example.clone()
             };

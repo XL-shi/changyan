@@ -16,8 +16,8 @@ use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut,
 use tauri_plugin_store::StoreExt;
 use tracing_subscriber::EnvFilter;
 
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 
 /// Default cloud API base URL. Override with the `API_BASE_URL` environment variable.
 pub const DEFAULT_API_BASE_URL: &str = "https://www.opentypeless.com";
@@ -234,9 +234,7 @@ unsafe fn cgs_move_to_active_space(ns_window: &objc2_app_kit::NSWindow) {
     let wid = ns_window.windowNumber() as i32;
     let active_space = CGSGetActiveSpace(cid);
 
-    tracing::info!(
-        "[Capsule] CGS: cid={cid} wid={wid} activeSpace={active_space}"
-    );
+    tracing::info!("[Capsule] CGS: cid={cid} wid={wid} activeSpace={active_space}");
 
     // 1) Set sticky tags (both bit 1 = 0x2 and bit 11 = 0x800)
     let tags: [i32; 2] = [(1 << 1) | (1 << 11), 0]; // 0x802
@@ -295,8 +293,12 @@ pub(crate) fn raise_capsule_window(app: &tauri::AppHandle) {
         }
 
         use objc2_app_kit::{NSScreenSaverWindowLevel, NSWindow, NSWindowCollectionBehavior};
-        let Some(capsule) = app2.get_webview_window("capsule") else { return };
-        let Ok(ns_ptr) = capsule.ns_window() else { return };
+        let Some(capsule) = app2.get_webview_window("capsule") else {
+            return;
+        };
+        let Ok(ns_ptr) = capsule.ns_window() else {
+            return;
+        };
         unsafe {
             let ns_window = &*(ns_ptr as *const NSWindow);
             let before_level = ns_window.level();
@@ -305,7 +307,10 @@ pub(crate) fn raise_capsule_window(app: &tauri::AppHandle) {
             let is_on_active_space = ns_window.isOnActiveSpace();
             tracing::info!(
                 "[Capsule] raise BEFORE: level={} behavior={:?} isVisible={} isOnActiveSpace={}",
-                before_level, before_behavior, is_visible, is_on_active_space
+                before_level,
+                before_behavior,
+                is_visible,
+                is_on_active_space
             );
             let behavior = NSWindowCollectionBehavior::CanJoinAllSpaces
                 | NSWindowCollectionBehavior::FullScreenAuxiliary
@@ -316,7 +321,10 @@ pub(crate) fn raise_capsule_window(app: &tauri::AppHandle) {
             ns_window.orderFrontRegardless();
             tracing::info!(
                 "[Capsule] raise AFTER:  level={} behavior={:?} isVisible={} isOnActiveSpace={}",
-                ns_window.level(), ns_window.collectionBehavior(), ns_window.isVisible(), ns_window.isOnActiveSpace()
+                ns_window.level(),
+                ns_window.collectionBehavior(),
+                ns_window.isVisible(),
+                ns_window.isOnActiveSpace()
             );
         }
     })
@@ -333,7 +341,9 @@ pub(crate) fn raise_capsule_window(_app: &tauri::AppHandle) {}
 #[cfg(target_os = "macos")]
 fn register_space_observer(app: &tauri::App) {
     use block2::RcBlock;
-    use objc2_app_kit::{NSScreenSaverWindowLevel, NSWindow, NSWindowCollectionBehavior, NSWorkspace};
+    use objc2_app_kit::{
+        NSScreenSaverWindowLevel, NSWindow, NSWindowCollectionBehavior, NSWorkspace,
+    };
     use objc2_foundation::NSString;
 
     let app_handle = app.handle().clone();
@@ -1093,10 +1103,7 @@ async fn update_translate_hotkey(
     *translate_cache.0.lock().unwrap_or_else(|e| e.into_inner()) = hotkey.clone();
 
     config.translate_hotkey = hotkey;
-    config_state
-        .save(&config)
-        .await
-        .map_err(|e| e.to_string())
+    config_state.save(&config).await.map_err(|e| e.to_string())
 }
 
 /// Re-register the current hotkey from config after recording is done.
@@ -1222,9 +1229,8 @@ fn register_fn_key_tap(
     const TAP_TYPE: u32 = 1;
     const TAP_PLACE: u32 = 0;
     const TAP_LISTEN_ONLY: u32 = 1;
-    let event_mask: u64 = (1u64 << CG_EVENT_KEY_DOWN)
-        | (1u64 << CG_EVENT_KEY_UP)
-        | (1u64 << CG_EVENT_FLAGS_CHANGED);
+    let event_mask: u64 =
+        (1u64 << CG_EVENT_KEY_DOWN) | (1u64 << CG_EVENT_KEY_UP) | (1u64 << CG_EVENT_FLAGS_CHANGED);
 
     // ── Processing thread ────────────────────────────────────────────────────
     // Fn/Globe key ALWAYS uses toggle semantics regardless of hotkey_mode:
@@ -1669,11 +1675,8 @@ mod tests {
 pub fn run() {
     tracing_subscriber::fmt()
         .with_env_filter(
-            EnvFilter::from_default_env().add_directive(
-                "changyan=debug"
-                    .parse()
-                    .expect("static directive is valid"),
-            ),
+            EnvFilter::from_default_env()
+                .add_directive("changyan=debug".parse().expect("static directive is valid")),
         )
         .init();
 

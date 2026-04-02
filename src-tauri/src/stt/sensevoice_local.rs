@@ -71,7 +71,10 @@ impl SttProvider for SenseVoiceLocalProvider {
             .join("tokens.txt")
             .to_string_lossy()
             .into_owned();
-        let language = config.language.clone().unwrap_or_else(|| "auto".to_string());
+        let language = config
+            .language
+            .clone()
+            .unwrap_or_else(|| "auto".to_string());
 
         let text = tokio::task::spawn_blocking(move || -> Result<String> {
             #[cfg(feature = "local-stt")]

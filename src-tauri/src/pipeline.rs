@@ -147,7 +147,10 @@ impl PipelineHandle {
     pub fn force_idle(&self) {
         self.cancelled.store(true, Ordering::SeqCst);
         // Notify stt_done so any waiting stop() unblocks immediately
-        self.stt_done.lock().unwrap_or_else(|e| e.into_inner()).notify_one();
+        self.stt_done
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .notify_one();
         // Drop audio capture
         *self.audio_handle.lock().unwrap_or_else(|e| e.into_inner()) = None;
         self.set_state(PipelineState::Idle);
@@ -230,7 +233,9 @@ impl PipelineHandle {
         match &selected {
             Some(s) if !s.trim().is_empty() => {
                 if backup.as_deref() == Some(s.as_str()) {
-                    tracing::debug!("Selected text equals clipboard backup — Cmd+C had no effect, ignoring");
+                    tracing::debug!(
+                        "Selected text equals clipboard backup — Cmd+C had no effect, ignoring"
+                    );
                     None
                 } else {
                     Some(s.clone())
@@ -643,7 +648,8 @@ impl PipelineHandle {
                 max_tokens: 4096,
                 temperature: 0.3,
             };
-            let provider = llm::create_provider(&config.llm_provider, Some(self.shared_client.clone()));
+            let provider =
+                llm::create_provider(&config.llm_provider, Some(self.shared_client.clone()));
             Some((llm_config, provider))
         } else {
             None
@@ -651,7 +657,11 @@ impl PipelineHandle {
 
         // Wait for STT task to finish (handles both streaming and file-based providers)
         // Timeout after 120s to support long recordings
-        let stt_done = self.stt_done.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        let stt_done = self
+            .stt_done
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         tokio::select! {
             _ = stt_done.notified() => {
                 tracing::debug!("STT task completed");
@@ -725,7 +735,9 @@ impl PipelineHandle {
                     llm_elapsed = llm_start.elapsed();
 
                     if final_text.is_empty() {
-                        tracing::info!("LLM returned empty text (filler-only input), skipping output");
+                        tracing::info!(
+                            "LLM returned empty text (filler-only input), skipping output"
+                        );
                         self.set_state(PipelineState::Idle);
                         return Ok(());
                     }
@@ -850,7 +862,9 @@ impl PipelineHandle {
             })
             .await;
             let _ = self.app_handle.emit("pipeline:target_app", app_name);
-            let _ = self.app_handle.emit("pipeline:copy_ready", text.to_string());
+            let _ = self
+                .app_handle
+                .emit("pipeline:copy_ready", text.to_string());
             return Ok(());
         }
 
@@ -955,7 +969,10 @@ impl PipelineHandle {
                     self.set_state(PipelineState::Idle);
                     return Ok(());
                 }
-                if let Err(e) = self.output_text(&final_text, &app_ctx.app_name, &config).await {
+                if let Err(e) = self
+                    .output_text(&final_text, &app_ctx.app_name, &config)
+                    .await
+                {
                     tracing::error!("translate_last output failed: {}", e);
                     let _ = self
                         .app_handle
@@ -992,7 +1009,10 @@ impl PipelineHandle {
             "deepgram" => "https://api.deepgram.com/v1/listen".to_string(),
             "assemblyai" => "https://api.assemblyai.com/v2/transcript".to_string(),
             _ => {
-                tracing::debug!("Unknown STT provider '{}', skipping pre-warm", config.stt_provider);
+                tracing::debug!(
+                    "Unknown STT provider '{}', skipping pre-warm",
+                    config.stt_provider
+                );
                 return;
             }
         };
