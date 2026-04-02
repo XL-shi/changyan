@@ -1815,7 +1815,7 @@ pub fn run() {
             // Initialize data directory and database
             let data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&data_dir)?;
-            let db_path = data_dir.join("opentypeless.db");
+            let db_path = data_dir.join("changyan.db");
 
             // Initialize stores
             let config_manager = storage::ConfigManager::new(app_handle.clone());
