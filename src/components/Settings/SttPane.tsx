@@ -1,10 +1,136 @@
+import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
+import { listen } from '@tauri-apps/api/event'
 import { useAppStore } from '../../stores/appStore'
 import { useAuthStore } from '../../stores/authStore'
 import { STT_PROVIDERS, LANGUAGES } from '../../lib/constants'
-import { benchSttConnection } from '../../lib/tauri'
+import {
+  benchSttConnection,
+  getSenseVoiceModelStatus,
+  downloadSenseVoiceModel,
+  deleteSenseVoiceModel,
+  type ModelStatus,
+  type ModelDownloadProgress,
+} from '../../lib/tauri'
 import { FormField } from './shared/FormField'
-import { CheckCircle2, XCircle, Loader2, Crown } from 'lucide-react'
+import { CheckCircle2, XCircle, Loader2, Crown, Download, Trash2, HardDrive } from 'lucide-react'
+
+function SenseVoiceLocalPanel() {
+  const { t } = useTranslation()
+  const [status, setStatus] = useState<ModelStatus | null>(null)
+  const [downloading, setDownloading] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [downloadError, setDownloadError] = useState<string | null>(null)
+
+  const refresh = async () => {
+    const s = await getSenseVoiceModelStatus()
+    setStatus(s)
+  }
+
+  useEffect(() => {
+    refresh()
+  }, [])
+
+  useEffect(() => {
+    let unlistenProgress: (() => void) | undefined
+    let unlistenComplete: (() => void) | undefined
+
+    listen<ModelDownloadProgress>('model:download-progress', (e) => {
+      setProgress(e.payload.percent)
+    }).then((fn) => {
+      unlistenProgress = fn
+    })
+
+    listen('model:download-complete', () => {
+      setDownloading(false)
+      setProgress(100)
+      refresh()
+    }).then((fn) => {
+      unlistenComplete = fn
+    })
+
+    return () => {
+      unlistenProgress?.()
+      unlistenComplete?.()
+    }
+  }, [])
+
+  const handleDownload = async () => {
+    setDownloading(true)
+    setProgress(0)
+    setDownloadError(null)
+    try {
+      await downloadSenseVoiceModel()
+    } catch (e) {
+      setDownloading(false)
+      setDownloadError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!window.confirm(t('settings.senseVoiceDeleteConfirm'))) return
+    await deleteSenseVoiceModel()
+    refresh()
+  }
+
+  return (
+    <div className="border border-border rounded-[10px] p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <HardDrive size={14} className="text-text-secondary" />
+        <span className="text-[13px] font-medium text-text-primary">
+          {t('settings.localModel')}
+        </span>
+        <span className="text-[11px] text-text-tertiary">{t('settings.localModelHint')}</span>
+      </div>
+
+      {status?.isDownloaded ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-1.5 text-[12px] text-success">
+            <CheckCircle2 size={13} />
+            <span>{t('settings.modelReady')}</span>
+            {status.sizeMb !== null && (
+              <span className="text-text-tertiary">({status.sizeMb.toFixed(0)} MB)</span>
+            )}
+          </div>
+          <button
+            onClick={handleDelete}
+            className="flex items-center gap-1.5 text-[12px] text-error hover:underline cursor-pointer"
+          >
+            <Trash2 size={12} />
+            {t('settings.deleteModel')}
+          </button>
+        </div>
+      ) : downloading ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-[12px] text-text-secondary">
+            <Loader2 size={13} className="animate-spin" />
+            <span>
+              {t('settings.downloadingModel')} {progress.toFixed(0)}%
+            </span>
+          </div>
+          <div className="w-full h-1.5 bg-bg-secondary rounded-full overflow-hidden">
+            <div
+              className="h-full bg-accent transition-all duration-300"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-[12px] text-text-secondary">{t('settings.modelNotDownloaded')}</p>
+          {downloadError && <p className="text-[12px] text-error">{downloadError}</p>}
+          <button
+            onClick={handleDownload}
+            className="flex items-center gap-1.5 px-3 py-2 bg-accent text-white rounded-[8px] text-[12px] hover:bg-accent-hover transition-colors cursor-pointer border-none"
+          >
+            <Download size={13} />
+            {t('settings.downloadModel')} (~360 MB)
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export function SttPane() {
   const config = useAppStore((s) => s.config)
@@ -17,6 +143,7 @@ export function SttPane() {
   const { t } = useTranslation()
 
   const isCloud = config.stt_provider === 'cloud'
+  const isLocalSenseVoice = config.stt_provider === 'sensevoice-local'
 
   const handleTest = async () => {
     setSttTestStatus('testing')
@@ -52,7 +179,9 @@ export function SttPane() {
         </select>
       </FormField>
 
-      {isCloud ? (
+      {isLocalSenseVoice ? (
+        <SenseVoiceLocalPanel />
+      ) : isCloud ? (
         <div className="border border-border rounded-[10px] px-3 py-3 space-y-2">
           <div className="flex items-center gap-2 text-[13px]">
             <Crown size={14} className="text-accent" />
@@ -91,7 +220,8 @@ export function SttPane() {
           </div>
           {sttTestStatus === 'success' && (
             <p className="flex items-center gap-1 text-[12px] text-success mt-2">
-              <CheckCircle2 size={13} /> {sttLatencyMs !== null ? `${sttLatencyMs}ms` : t('settings.connectionSuccess')}
+              <CheckCircle2 size={13} />{' '}
+              {sttLatencyMs !== null ? `${sttLatencyMs}ms` : t('settings.connectionSuccess')}
             </p>
           )}
           {sttTestStatus === 'error' && (
