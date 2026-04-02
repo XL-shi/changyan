@@ -30,6 +30,7 @@
     "clipboard-manager:allow-read-text",
     "clipboard-manager:allow-write-text",
     "autostart:default",
+    "dialog:default",
     "opener:default",
     "deep-link:default"
   ]

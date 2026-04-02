@@ -94,7 +94,7 @@ export function DirtyBar() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-white bg-accent rounded-[10px] border-none cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-70"
+            className="jelly-btn-accent flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium border-none"
           >
             {saving && (
               <motion.div

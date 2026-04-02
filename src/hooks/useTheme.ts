@@ -1,36 +1,23 @@
 import { useEffect } from 'react'
-import { useAppStore } from '../stores/appStore'
-import type { Theme } from '../stores/appStore'
 
 export function useTheme() {
-  const theme = useAppStore((s) => s.config.theme)
-
   useEffect(() => {
     const root = document.documentElement
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
 
-    function applyTheme(t: Theme) {
-      if (t === 'dark') {
-        root.classList.add('dark')
-      } else if (t === 'light') {
-        root.classList.remove('dark')
-      } else {
-        // system
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-        root.classList.toggle('dark', prefersDark)
-      }
+    function applyTheme(isDark: boolean) {
+      root.classList.toggle('dark', isDark)
     }
 
-    applyTheme(theme)
+    applyTheme(mq.matches)
 
-    if (theme === 'system') {
-      const mq = window.matchMedia('(prefers-color-scheme: dark)')
-      const handler = (e: MediaQueryListEvent) => {
-        root.classList.toggle('dark', e.matches)
-      }
-      mq.addEventListener('change', handler)
-      return () => mq.removeEventListener('change', handler)
+    const handler = (e: MediaQueryListEvent) => {
+      applyTheme(e.matches)
     }
-  }, [theme])
 
-  return theme
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+
+  return 'system' as const
 }

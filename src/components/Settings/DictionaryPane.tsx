@@ -55,7 +55,7 @@ export function DictionaryPane() {
         <button
           onClick={handleAdd}
           disabled={!word.trim()}
-          className="px-4 py-2.5 bg-accent text-white rounded-[10px] text-[13px] border-none cursor-pointer hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+          className="jelly-btn-accent px-4 py-2.5 rounded-[10px] text-[13px] font-medium border-none flex items-center gap-1.5"
         >
           <Plus size={14} />
           {t('dictionary.add')}

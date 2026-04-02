@@ -257,7 +257,7 @@ function FilterChip({
       onClick={onClick}
       className={`px-3 py-1.5 rounded-full text-[12px] border cursor-pointer transition-colors capitalize ${
         active
-          ? 'bg-accent text-white border-accent'
+          ? 'jelly-btn-accent border-none'
           : 'bg-transparent text-text-secondary border-border hover:border-border-focus'
       }`}
     >

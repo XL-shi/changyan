@@ -406,14 +406,14 @@ export function GeneralPane() {
               {accessibilityGranted !== true && (
                 <button
                   onClick={handleOpenAccessibilitySettings}
-                  className="px-3 py-1.5 rounded-lg text-[13px] bg-surface-secondary text-text-primary hover:opacity-80 transition-opacity"
+                  className="jelly-btn px-3 py-1.5 rounded-lg text-[13px] text-text-primary border border-border"
                 >
                   {t('settings.accessibilityGrant', 'Open Accessibility Settings')}
                 </button>
               )}
               <button
                 onClick={handleCheckAccessibility}
-                className="px-3 py-1.5 rounded-lg text-[13px] bg-accent text-white hover:opacity-90 transition-opacity"
+                className="jelly-btn-accent px-3 py-1.5 rounded-lg text-[13px] font-medium border-none"
               >
                 {t('settings.accessibilityRecheck', 'Check Permission')}
               </button>

@@ -142,7 +142,7 @@ function SenseVoiceLocalPanel() {
           {downloadError && <p className="text-[12px] text-error">{downloadError}</p>}
           <button
             onClick={handleDownload}
-            className="flex items-center gap-1.5 px-3 py-2 bg-accent text-white rounded-[8px] text-[12px] hover:bg-accent-hover transition-colors cursor-pointer border-none"
+            className="jelly-btn-accent flex items-center gap-1.5 px-3 py-2 rounded-[8px] text-[12px] font-medium cursor-pointer border-none"
           >
             <Download size={13} />
             {t('settings.downloadModel')} (~360 MB)
@@ -233,7 +233,7 @@ export function SttPane() {
             <button
               onClick={handleTest}
               disabled={!config.stt_api_key || sttTestStatus === 'testing'}
-              className="px-4 py-2.5 bg-accent text-white rounded-[10px] text-[13px] border-none cursor-pointer hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+              className="jelly-btn-accent px-4 py-2.5 rounded-[10px] text-[13px] font-medium border-none flex items-center gap-1.5"
             >
               {sttTestStatus === 'testing' && <Loader2 size={14} className="animate-spin" />}
               {t('settings.test')}

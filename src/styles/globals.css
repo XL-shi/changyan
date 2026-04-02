@@ -175,15 +175,23 @@ body,
   color: #ffffff;
   border: none;
   border-radius: 9999px;
+  box-shadow: var(--shadow-sm);
   transition:
     background 0.15s ease,
+    box-shadow 0.15s ease,
     transform 0.1s ease;
 }
 .jelly-btn-accent:hover {
   background: #000000;
+  box-shadow: var(--shadow-md);
 }
 .jelly-btn-accent:active {
   transform: scale(0.97);
+}
+.jelly-btn-accent:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 .dark .jelly-btn-accent {
   background: #f5f5f7;

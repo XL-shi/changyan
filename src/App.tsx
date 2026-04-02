@@ -126,7 +126,7 @@ function MainApp() {
         <span className="text-error text-[13px]">Failed to load application data.</span>
         <button
           onClick={() => window.location.reload()}
-          className="px-4 py-2 bg-accent text-white rounded-[10px] text-[13px] border-none cursor-pointer hover:bg-accent-hover transition-colors"
+          className="jelly-btn-accent px-4 py-2 text-[13px] font-medium border-none"
         >
           Retry
         </button>

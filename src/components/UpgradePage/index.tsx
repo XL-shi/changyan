@@ -125,7 +125,7 @@ export function UpgradePage() {
           <button
             onClick={handleSubscribe}
             disabled={loading || !user}
-            className="w-full py-2.5 rounded-[8px] bg-accent text-white text-[13px] font-medium cursor-pointer border-none hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="jelly-btn-accent w-full py-2.5 rounded-[8px] text-[13px] font-medium border-none flex items-center justify-center gap-2"
           >
             {loading && <Loader2 size={14} className="animate-spin" />}
             {t('upgrade.subscribeToPro')}

@@ -137,7 +137,7 @@ export function AccountStep() {
               }
             }}
             disabled={loading}
-            className="w-full py-2.5 rounded-[10px] bg-accent text-white text-[13px] font-medium cursor-pointer border-none hover:bg-accent-hover transition-colors disabled:opacity-50"
+            className="jelly-btn-accent w-full py-2.5 rounded-[10px] text-[13px] font-medium border-none"
           >
             {loading ? t('onboarding.sending') : t('onboarding.resendVerification')}
           </button>
@@ -300,7 +300,7 @@ export function AccountStep() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-2.5 rounded-[10px] bg-accent text-white text-[13px] font-medium cursor-pointer border-none hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5"
+          className="jelly-btn-accent w-full py-2.5 rounded-[10px] text-[13px] font-medium border-none flex items-center justify-center gap-1.5"
         >
           {loading && <Loader2 size={14} className="animate-spin" />}
           {tab === 'signin' ? t('account.signIn') : t('account.signUp')}

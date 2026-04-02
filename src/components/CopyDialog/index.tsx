@@ -32,10 +32,10 @@ export function CopyDialog() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-[#1c1c1e] text-white rounded-2xl shadow-2xl w-[340px] p-5 relative">
+      <div className="bg-bg-elevated text-text-primary rounded-2xl shadow-2xl w-[340px] p-5 relative border border-border">
         <button
           onClick={() => setCopyReadyText(null)}
-          className="absolute top-3.5 right-3.5 text-white/40 hover:text-white/70 transition-colors border-none bg-transparent cursor-pointer p-1"
+          className="absolute top-3.5 right-3.5 text-text-tertiary hover:text-text-primary transition-colors border-none bg-transparent cursor-pointer p-1"
         >
           <X size={16} />
         </button>
@@ -47,13 +47,13 @@ export function CopyDialog() {
           </span>
         </div>
 
-        <p className="text-[13px] text-white/70 mb-4 line-clamp-3 bg-white/5 rounded-xl px-3 py-2">
+        <p className="text-[13px] text-text-secondary mb-4 line-clamp-3 bg-bg-secondary rounded-xl px-3 py-2 border border-border">
           &ldquo;{copyReadyText}&rdquo;
         </p>
 
         <button
           onClick={handleCopy}
-          className="w-full py-2.5 rounded-xl text-[14px] font-medium bg-white/15 hover:bg-white/25 transition-colors border-none text-white cursor-pointer"
+          className="jelly-btn-accent w-full py-2.5 rounded-xl text-[14px] font-medium border-none"
         >
           {copied ? t('copyDialog.copied', '已复制') : t('copyDialog.copy', '复制')}
         </button>

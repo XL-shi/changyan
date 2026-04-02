@@ -98,7 +98,7 @@ function AuthForm() {
               }
             }}
             disabled={loading}
-            className="px-4 py-2 rounded-[8px] bg-accent text-white text-[13px] font-medium cursor-pointer border-none hover:opacity-90 transition-opacity disabled:opacity-50"
+            className="jelly-btn-accent px-4 py-2 rounded-[8px] text-[13px] font-medium border-none"
           >
             {loading
               ? t('account.sending', 'Sending...')
@@ -281,7 +281,7 @@ function AuthForm() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-2 rounded-[8px] bg-accent text-white text-[13px] font-medium cursor-pointer border-none hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+          className="jelly-btn-accent w-full py-2 rounded-[8px] text-[13px] font-medium border-none flex items-center justify-center gap-2"
         >
           {loading && <Loader2 size={14} className="animate-spin" />}
           {tab === 'signin' ? t('account.signIn') : t('account.signUp')}

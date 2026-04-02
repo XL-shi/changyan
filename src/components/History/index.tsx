@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { confirm } from '@tauri-apps/plugin-dialog'
 import { useTranslation } from 'react-i18next'
 import { Search, Copy, Trash2 } from 'lucide-react'
 import { spring } from '../../lib/animations'
@@ -40,8 +41,9 @@ export function History() {
   }
 
   const handleClear = async () => {
-    if (!window.confirm(t('history.clearConfirm'))) return
     try {
+      const confirmed = await confirm(t('history.clearConfirm'), { kind: 'warning' })
+      if (!confirmed) return
       await clearHistory()
       setHistory([])
     } catch (e) {
