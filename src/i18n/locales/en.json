@@ -204,7 +204,15 @@
     "translateTarget": "Translation Target",
     "translateTargetDesc": "Select the target language for dictation in translation mode.",
     "languageSection": "Language",
-    "clickToSet": "Click to set"
+    "clickToSet": "Click to set",
+    "localModel": "Local Model",
+    "localModelHint": "Runs on your device, no internet needed",
+    "modelReady": "Model ready to use",
+    "deleteModel": "Delete model files",
+    "modelNotDownloaded": "First use requires downloading model files (~360 MB)",
+    "downloadModel": "Download Model",
+    "downloadingModel": "Downloading",
+    "senseVoiceDeleteConfirm": "Delete model files? You will need to re-download to use local recognition."
   },
   "dictionary": {
     "word": "Word",

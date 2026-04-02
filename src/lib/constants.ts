@@ -25,6 +25,7 @@ export const PRO_PLAN = {
 } as const
 
 export const STT_PROVIDERS = [
+  { value: 'sensevoice-local', label: 'SenseVoice Small (本地 · 免费)' },
   { value: 'deepgram', label: 'Deepgram Nova-3' },
   { value: 'assemblyai', label: 'AssemblyAI' },
   { value: 'glm-asr', label: 'GLM-ASR (智谱)' },

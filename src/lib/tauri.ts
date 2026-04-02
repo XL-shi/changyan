@@ -137,3 +137,28 @@ export async function requestAccessibilityPermission(): Promise<boolean> {
 export async function openAccessibilitySettings(): Promise<void> {
   return invoke('open_accessibility_settings')
 }
+
+// Model management (SenseVoice local)
+export type ModelDownloadProgress = {
+  downloaded: number
+  total: number
+  percent: number
+}
+
+export type ModelStatus = {
+  isDownloaded: boolean
+  modelDir: string
+  sizeMb: number | null
+}
+
+export async function getSenseVoiceModelStatus(): Promise<ModelStatus> {
+  return invoke('get_sensevoice_model_status')
+}
+
+export async function downloadSenseVoiceModel(): Promise<void> {
+  return invoke('download_sensevoice_model')
+}
+
+export async function deleteSenseVoiceModel(): Promise<void> {
+  return invoke('delete_sensevoice_model')
+}

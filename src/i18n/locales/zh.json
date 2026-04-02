@@ -204,7 +204,15 @@
     "translateTarget": "翻译目标",
     "translateTargetDesc": "选择翻译模式下的听写目标语言。",
     "languageSection": "语言",
-    "clickToSet": "点击设置"
+    "clickToSet": "点击设置",
+    "localModel": "本地模型",
+    "localModelHint": "运行在您的设备上，无需联网",
+    "modelReady": "模型已就绪，可以使用",
+    "deleteModel": "删除模型文件",
+    "modelNotDownloaded": "首次使用需下载模型文件（约 360 MB）",
+    "downloadModel": "下载模型",
+    "downloadingModel": "正在下载",
+    "senseVoiceDeleteConfirm": "确定删除模型文件？删除后需重新下载才能使用本地识别。"
   },
   "dictionary": {
     "word": "词语",
