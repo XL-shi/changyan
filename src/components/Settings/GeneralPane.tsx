@@ -120,6 +120,8 @@ function HotkeyRecorder({ value, onSave, clearable }: HotkeyRecorderProps) {
       e.preventDefault()
       e.stopPropagation()
 
+      // Fn modifier is not exposed by browsers; Fn combos are handled entirely
+      // by the backend CGEventTap via hotkey:fn_combo_detected events.
       const parts: string[] = []
       if (e.ctrlKey) parts.push('Ctrl')
       if (e.altKey) parts.push('Alt')
@@ -158,12 +160,9 @@ function HotkeyRecorder({ value, onSave, clearable }: HotkeyRecorderProps) {
 
       parts.push(keyName)
       const combo = parts.join('+')
-      setPending(combo)
-
+      // Auto-save immediately — no confirmation step needed.
       if (autoConfirmTimer.current) clearTimeout(autoConfirmTimer.current)
-      autoConfirmTimer.current = setTimeout(() => {
-        confirmHotkey(combo)
-      }, 1500)
+      confirmHotkey(combo)
     },
     [confirmHotkey],
   )
@@ -177,23 +176,39 @@ function HotkeyRecorder({ value, onSave, clearable }: HotkeyRecorderProps) {
     window.addEventListener('keydown', handleKeyDown, true)
     window.addEventListener('keyup', handleKeyUp, true)
 
-    let unlisten: (() => void) | undefined
+    let unlistenFn: (() => void) | undefined
+    let unlistenCombo: (() => void) | undefined
+
+    // Plain Fn/Globe pressed with no other modifier held.
+    // Wait briefly for a sequential key (e.g. Fn then /) before saving as plain "Fn".
     listen('hotkey:fn_detected', () => {
       if (autoConfirmTimer.current) clearTimeout(autoConfirmTimer.current)
       setPending('Fn')
-      setModifierHint(null)
+      setModifierHint('Fn+...')
       autoConfirmTimer.current = setTimeout(() => {
+        setModifierHint(null)
         confirmHotkey('Fn')
-      }, 1500)
+      }, 600)
     }).then((fn) => {
-      unlisten = fn
+      unlistenFn = fn
+    })
+
+    // Fn combo detected by CGEventTap — either Fn+modifier (simultaneous, instant)
+    // or Fn+key (sequential, via keycode table). Save immediately.
+    listen<string>('hotkey:fn_combo_detected', (event) => {
+      if (autoConfirmTimer.current) clearTimeout(autoConfirmTimer.current)
+      setModifierHint(null)
+      confirmHotkey(event.payload)
+    }).then((fn) => {
+      unlistenCombo = fn
     })
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown, true)
       window.removeEventListener('keyup', handleKeyUp, true)
       if (autoConfirmTimer.current) clearTimeout(autoConfirmTimer.current)
-      unlisten?.()
+      unlistenFn?.()
+      unlistenCombo?.()
       resumeHotkey().catch(() => {})
     }
   }, [recording, handleKeyDown, handleKeyUp, confirmHotkey])

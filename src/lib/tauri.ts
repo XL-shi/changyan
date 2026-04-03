@@ -164,3 +164,8 @@ export async function downloadSenseVoiceModel(): Promise<void> {
 export async function deleteSenseVoiceModel(): Promise<void> {
   return invoke('delete_sensevoice_model')
 }
+
+/** Returns the real OS version (e.g. "15.7.5"). Empty string on non-macOS. */
+export async function getOsVersion(): Promise<string> {
+  return invoke('get_os_version')
+}

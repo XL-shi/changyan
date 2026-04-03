@@ -9,6 +9,7 @@ import {
   getSenseVoiceModelStatus,
   downloadSenseVoiceModel,
   deleteSenseVoiceModel,
+  getOsVersion,
   type ModelStatus,
   type ModelDownloadProgress,
 } from '../../lib/tauri'
@@ -16,18 +17,17 @@ import { FormField } from './shared/FormField'
 import { CheckCircle2, XCircle, Loader2, Crown, Download, Trash2, HardDrive } from 'lucide-react'
 
 // macOS 13+ required for local SenseVoice inference (sherpa-onnx requires macOS 13.3+ libc++)
-function isMacOsSupported(): boolean {
-  const ua = navigator.userAgent
-  // Tauri on macOS: "Mac OS X 10_15_7" or "Mac OS X 13_6" style
-  const match = ua.match(/Mac OS X (\d+)[_.](\d+)/)
-  if (!match) return true // non-macOS or unknown, let it try
-  const major = parseInt(match[1], 10)
-  const minor = parseInt(match[2], 10)
-  // macOS 13 = "Mac OS X 13_x" in modern UA; older style "10_15" = Catalina (10.x)
-  if (major === 10) return false // macOS 10.x (Catalina and below)
-  if (major === 11) return false // macOS 11 Big Sur
-  if (major === 12) return false // macOS 12 Monterey
-  return major >= 13 || (major === 13 && minor >= 3)
+// navigator.userAgent is frozen to "Mac OS X 10_15_7" on ALL macOS versions — use Tauri IPC instead.
+function parseMacOsVersionString(ver: string): { major: number; minor: number } | null {
+  const parts = ver.split('.').map(Number)
+  if (!parts[0] || isNaN(parts[0])) return null
+  return { major: parts[0], minor: parts[1] ?? 0 }
+}
+
+function isMacOsSupportedByVersion(ver: string): boolean {
+  const parsed = parseMacOsVersionString(ver)
+  if (!parsed) return true // non-macOS or unknown, let it try
+  return parsed.major >= 13
 }
 
 function SenseVoiceLocalPanel() {
@@ -36,7 +36,8 @@ function SenseVoiceLocalPanel() {
   const [downloading, setDownloading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [downloadError, setDownloadError] = useState<string | null>(null)
-  const macOsOk = isMacOsSupported()
+  const [osVersion, setOsVersion] = useState<string>('')
+  const macOsOk = osVersion === '' ? true : isMacOsSupportedByVersion(osVersion)
 
   const refresh = async () => {
     const s = await getSenseVoiceModelStatus()
@@ -45,6 +46,7 @@ function SenseVoiceLocalPanel() {
 
   useEffect(() => {
     refresh()
+    getOsVersion().then(setOsVersion)
   }, [])
 
   useEffect(() => {
@@ -102,7 +104,7 @@ function SenseVoiceLocalPanel() {
       {!macOsOk ? (
         <div className="space-y-1">
           <p className="text-[12px] text-text-secondary">{t('settings.localModelRequiresMacOs13')}</p>
-          <p className="text-[11px] text-text-tertiary">{t('settings.localModelCurrentOs')}: macOS 12</p>
+          <p className="text-[11px] text-text-tertiary">{t('settings.localModelCurrentOs')}: macOS {osVersion || '...'}</p>
         </div>
       ) : status?.isDownloaded ? (
         <div className="space-y-2">

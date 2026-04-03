@@ -23,6 +23,29 @@ impl SenseVoiceLocalProvider {
 #[async_trait]
 impl SttProvider for SenseVoiceLocalProvider {
     async fn connect(&mut self, config: &SttConfig) -> Result<()> {
+        // Check macOS version first — sherpa-onnx requires macOS 13+ libc++
+        #[cfg(target_os = "macos")]
+        {
+            if let Ok(output) = std::process::Command::new("sw_vers")
+                .arg("-productVersion")
+                .output()
+            {
+                let version_str = String::from_utf8_lossy(&output.stdout);
+                let version_str = version_str.trim();
+                let parts: Vec<u32> = version_str
+                    .split('.')
+                    .filter_map(|s| s.parse().ok())
+                    .collect();
+                let major = parts.first().copied().unwrap_or(0);
+                if major < 13 {
+                    anyhow::bail!(
+                        "SenseVoice 本地推理需要 macOS 13 (Ventura) 或更高版本，当前系统: macOS {}",
+                        version_str
+                    );
+                }
+            }
+        }
+
         let model_file = self.model_dir.join("model.int8.onnx");
         let tokens_file = self.model_dir.join("tokens.txt");
         if !model_file.exists() || !tokens_file.exists() {

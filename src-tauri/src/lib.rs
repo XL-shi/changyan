@@ -34,9 +34,12 @@ struct FnHotkeyState {
     /// True while the user is recording a new hotkey in Settings — tap emits
     /// `hotkey:fn_detected` instead of driving the pipeline.
     recording: Arc<AtomicBool>,
-    /// True when translate hotkey is "Fn+Shift" — Fn+Shift triggers translate session
-    /// instead of normal recording.
-    fn_translate: Arc<AtomicBool>,
+    /// The extra key required after Fn for combos like "Fn+A" or "Fn+/".
+    /// None = plain "Fn" (trigger on Fn press alone).
+    /// Some("A") = require 'A' to be pressed while Fn is held.
+    fn_hotkey_extra: Arc<Mutex<Option<String>>>,
+    /// Optional Fn-family translate hotkey suffix, e.g. Some("LeftShift").
+    fn_translate_extra: Arc<Mutex<Option<String>>>,
 }
 
 /// Cached close_to_tray setting to avoid blocking I/O in the window close handler.
@@ -126,6 +129,27 @@ pub fn refresh_tray(app: &tauri::AppHandle) {
                 let _ = tray.set_menu(Some(menu));
             }
         }
+    }
+}
+
+/// Returns the real OS version string (e.g. "15.7.5" on macOS Sequoia).
+/// navigator.userAgent is frozen to "Mac OS X 10_15_7" on all macOS versions,
+/// so we must read the actual version from the OS here.
+#[tauri::command]
+fn get_os_version() -> String {
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("sw_vers")
+            .arg("-productVersion")
+            .output()
+            .ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .map(|s| s.trim().to_string())
+            .unwrap_or_default()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        String::new()
     }
 }
 
@@ -1022,13 +1046,21 @@ async fn update_hotkey(
     // Recording is always done by the time update_hotkey is called
     fn_state.recording.store(false, Ordering::Relaxed);
 
-    if hotkey == "Fn" {
+    if hotkey.starts_with("Fn") {
         fn_state.enabled.store(true, Ordering::Relaxed);
+        *fn_state
+            .fn_hotkey_extra
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = parse_fn_hotkey_extra(&hotkey);
         app.global_shortcut()
             .unregister_all()
             .map_err(|e| e.to_string())?;
     } else {
         fn_state.enabled.store(false, Ordering::Relaxed);
+        *fn_state
+            .fn_hotkey_extra
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
         let new_shortcut =
             parse_hotkey(&hotkey).ok_or_else(|| format!("Invalid hotkey: {}", hotkey))?;
         app.global_shortcut()
@@ -1048,7 +1080,7 @@ async fn update_hotkey(
         .map_err(|e| e.to_string())?;
 
     // Re-register translate hotkey if configured
-    if !config.translate_hotkey.is_empty() {
+    if !config.translate_hotkey.is_empty() && !config.translate_hotkey.starts_with("Fn") {
         if let Some(t_shortcut) = parse_hotkey(&config.translate_hotkey) {
             let _ = app.global_shortcut().register(t_shortcut);
         }
@@ -1086,7 +1118,7 @@ async fn update_translate_hotkey(
     let mut config = config_state.load().await.map_err(|e| e.to_string())?;
 
     // Re-register main hotkey
-    if config.hotkey == "Fn" {
+    if config.hotkey.starts_with("Fn") {
         fn_state.enabled.store(true, Ordering::Relaxed);
     } else {
         let main_shortcut = parse_hotkey(&config.hotkey).unwrap_or_else(default_shortcut);
@@ -1094,11 +1126,12 @@ async fn update_translate_hotkey(
     }
 
     // Register new translate hotkey (empty = clear)
-    // "Fn+Shift" is handled by CGEventTap — no global shortcut registration needed
-    fn_state
-        .fn_translate
-        .store(hotkey == "Fn+Shift", Ordering::Relaxed);
-    if !hotkey.is_empty() && hotkey != "Fn+Shift" {
+    // All Fn-family hotkeys are handled by CGEventTap — no global shortcut registration.
+    *fn_state
+        .fn_translate_extra
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = parse_fn_hotkey_extra(&hotkey);
+    if !hotkey.is_empty() && !hotkey.starts_with("Fn") {
         let t_shortcut =
             parse_hotkey(&hotkey).ok_or_else(|| format!("Invalid hotkey: {}", hotkey))?;
         app.global_shortcut()
@@ -1123,11 +1156,23 @@ async fn resume_hotkey(
     let config = config_state.load().await.map_err(|e| e.to_string())?;
     let fn_state = app.state::<FnHotkeyState>();
     fn_state.recording.store(false, Ordering::Relaxed);
+    *fn_state
+        .fn_translate_extra
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = parse_fn_hotkey_extra(&config.translate_hotkey);
 
-    if config.hotkey == "Fn" {
+    if config.hotkey.starts_with("Fn") {
         fn_state.enabled.store(true, Ordering::Relaxed);
+        *fn_state
+            .fn_hotkey_extra
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = parse_fn_hotkey_extra(&config.hotkey);
     } else {
         fn_state.enabled.store(false, Ordering::Relaxed);
+        *fn_state
+            .fn_hotkey_extra
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
         let shortcut = parse_hotkey(&config.hotkey).unwrap_or_else(default_shortcut);
         // Ensure clean state, then register
         let _ = app.global_shortcut().unregister_all();
@@ -1137,7 +1182,7 @@ async fn resume_hotkey(
     }
 
     // Re-register translate hotkey if configured
-    if !config.translate_hotkey.is_empty() {
+    if !config.translate_hotkey.is_empty() && !config.translate_hotkey.starts_with("Fn") {
         if let Some(t_shortcut) = parse_hotkey(&config.translate_hotkey) {
             let _ = app.global_shortcut().register(t_shortcut);
         }
@@ -1169,7 +1214,8 @@ fn register_fn_key_tap(
     app_handle: tauri::AppHandle,
     enabled: Arc<AtomicBool>,
     recording: Arc<AtomicBool>,
-    fn_translate: Arc<AtomicBool>,
+    fn_translate_extra: Arc<Mutex<Option<String>>>,
+    fn_hotkey_extra: Arc<Mutex<Option<String>>>,
 ) {
     use std::ffi::c_void;
 
@@ -1208,6 +1254,12 @@ fn register_fn_key_tap(
         fn CGEventTapEnable(tap: CFMachPortRef, enable: bool);
         fn CGEventGetIntegerValueField(event: CGEventRef, field: u32) -> i64;
         fn CGEventGetFlags(event: CGEventRef) -> u64;
+        fn CGEventKeyboardGetUnicodeString(
+            event: CGEventRef,
+            max_string_length: usize,
+            actual_string_length: *mut usize,
+            unicode_string: *mut u16,
+        );
     }
 
     #[link(name = "CoreFoundation", kind = "framework")]
@@ -1230,8 +1282,6 @@ fn register_fn_key_tap(
     const CG_KEYBOARD_EVENT_KEYCODE: u32 = 9;
     // kCGEventFlagMaskSecondaryFn = Fn modifier bit
     const CG_FLAG_FN: u64 = 0x0080_0000;
-    // kCGEventFlagMaskShift
-    const CG_FLAG_SHIFT: u64 = 0x0002_0000;
     // kVK_Function = 63 (Intel/older), Globe key = 179 (Apple Silicon)
     const FN_KEYCODE: i64 = 63;
     const GLOBE_KEYCODE: i64 = 179;
@@ -1290,9 +1340,15 @@ fn register_fn_key_tap(
         enabled: Arc<AtomicBool>,
         /// True while the user is recording a hotkey in Settings UI.
         recording: Arc<AtomicBool>,
-        /// True when translate hotkey is "Fn+Shift" — Fn+Shift triggers translate session.
-        fn_translate: Arc<AtomicBool>,
         fn_pressed: AtomicBool,
+        left_shift_pressed: AtomicBool,
+        right_shift_pressed: AtomicBool,
+        left_ctrl_pressed: AtomicBool,
+        right_ctrl_pressed: AtomicBool,
+        left_alt_pressed: AtomicBool,
+        right_alt_pressed: AtomicBool,
+        left_meta_pressed: AtomicBool,
+        right_meta_pressed: AtomicBool,
         /// Milliseconds of last sent event (for debounce).
         /// On Intel Macs, one physical Fn keypress can generate the sequence
         /// FlagsChanged(down) → FlagsChanged(up) → FlagsChanged(down) in rapid
@@ -1301,6 +1357,116 @@ fn register_fn_key_tap(
         last_press_ms: std::sync::atomic::AtomicU64,
         tx: std::sync::mpsc::Sender<bool>,
         app_handle: tauri::AppHandle,
+        /// Extra key required for Fn+Key combos (None = plain Fn, Some("A") = Fn+A).
+        fn_hotkey_extra: Arc<Mutex<Option<String>>>,
+        /// Extra key required for Fn-family translate combos (e.g. Some("RightShift")).
+        fn_translate_extra: Arc<Mutex<Option<String>>>,
+    }
+
+    fn toggle_pressed_modifier(state: &TapState, keycode: i64) -> Option<(&'static str, bool)> {
+        match keycode {
+            54 => Some((
+                "RightMeta",
+                !state.right_meta_pressed.fetch_xor(true, Ordering::Relaxed),
+            )),
+            55 => Some((
+                "LeftMeta",
+                !state.left_meta_pressed.fetch_xor(true, Ordering::Relaxed),
+            )),
+            56 => Some((
+                "LeftShift",
+                !state.left_shift_pressed.fetch_xor(true, Ordering::Relaxed),
+            )),
+            58 => Some((
+                "LeftAlt",
+                !state.left_alt_pressed.fetch_xor(true, Ordering::Relaxed),
+            )),
+            59 => Some((
+                "LeftCtrl",
+                !state.left_ctrl_pressed.fetch_xor(true, Ordering::Relaxed),
+            )),
+            60 => Some((
+                "RightShift",
+                !state.right_shift_pressed.fetch_xor(true, Ordering::Relaxed),
+            )),
+            61 => Some((
+                "RightAlt",
+                !state.right_alt_pressed.fetch_xor(true, Ordering::Relaxed),
+            )),
+            62 => Some((
+                "RightCtrl",
+                !state.right_ctrl_pressed.fetch_xor(true, Ordering::Relaxed),
+            )),
+            _ => None,
+        }
+    }
+
+    fn pressed_modifier_labels(state: &TapState) -> Vec<&'static str> {
+        let mut labels = Vec::new();
+        if state.left_ctrl_pressed.load(Ordering::Relaxed) {
+            labels.push("LeftCtrl");
+        }
+        if state.right_ctrl_pressed.load(Ordering::Relaxed) {
+            labels.push("RightCtrl");
+        }
+        if state.left_alt_pressed.load(Ordering::Relaxed) {
+            labels.push("LeftAlt");
+        }
+        if state.right_alt_pressed.load(Ordering::Relaxed) {
+            labels.push("RightAlt");
+        }
+        if state.left_shift_pressed.load(Ordering::Relaxed) {
+            labels.push("LeftShift");
+        }
+        if state.right_shift_pressed.load(Ordering::Relaxed) {
+            labels.push("RightShift");
+        }
+        if state.left_meta_pressed.load(Ordering::Relaxed) {
+            labels.push("LeftMeta");
+        }
+        if state.right_meta_pressed.load(Ordering::Relaxed) {
+            labels.push("RightMeta");
+        }
+        labels
+    }
+
+    fn best_fn_target_for_label(state: &TapState, actual: &str) -> Option<(u8, bool)> {
+        let main_score = state
+            .fn_hotkey_extra
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+            .map(|expected| fn_extra_match_score(expected, actual))
+            .unwrap_or(0);
+        let translate_score = state
+            .fn_translate_extra
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+            .map(|expected| fn_extra_match_score(expected, actual))
+            .unwrap_or(0);
+
+        if translate_score > 0 && translate_score >= main_score {
+            Some((translate_score, true))
+        } else if main_score > 0 {
+            Some((main_score, false))
+        } else {
+            None
+        }
+    }
+
+    fn best_fn_target_for_pressed_modifiers(state: &TapState) -> Option<bool> {
+        let mut best: Option<(u8, bool)> = None;
+        for label in pressed_modifier_labels(state) {
+            if let Some(candidate) = best_fn_target_for_label(state, label) {
+                match best {
+                    Some(current) if current.0 > candidate.0 => {}
+                    Some(current) if current.0 == candidate.0 && current.1 && !candidate.1 => {}
+                    _ => best = Some(candidate),
+                }
+            }
+        }
+        best.map(|(_, is_translate)| is_translate)
     }
 
     unsafe extern "C" fn tap_callback(
@@ -1311,6 +1477,11 @@ fn register_fn_key_tap(
     ) -> CGEventRef {
         let state = &*(user_info as *const TapState);
         let keycode = CGEventGetIntegerValueField(event, CG_KEYBOARD_EVENT_KEYCODE);
+        let modifier_event = if event_type == CG_EVENT_FLAGS_CHANGED {
+            toggle_pressed_modifier(state, keycode)
+        } else {
+            None
+        };
 
         // ── Hotkey recording mode: detect Fn/Globe and notify the frontend ──
         if state.recording.load(Ordering::Relaxed) {
@@ -1322,7 +1493,71 @@ fn register_fn_key_tap(
                 _ => false,
             };
             if is_fn_press {
-                let _ = state.app_handle.emit("hotkey:fn_detected", ());
+                // Track pressed state so sequential Fn+Key detection can check it below.
+                state.fn_pressed.store(true, Ordering::Relaxed);
+                let mods = pressed_modifier_labels(state);
+                if !mods.is_empty() {
+                    let combo = format!("Fn+{}", mods.join("+"));
+                    let _ = state.app_handle.emit("hotkey:fn_combo_detected", combo);
+                } else {
+                    let _ = state.app_handle.emit("hotkey:fn_detected", ());
+                }
+                return event;
+            }
+            // Fn/Globe released during recording — clear the pressed flag.
+            let is_fn_release = match event_type {
+                CG_EVENT_KEY_UP if keycode == GLOBE_KEYCODE => true,
+                CG_EVENT_FLAGS_CHANGED if keycode == FN_KEYCODE => {
+                    CGEventGetFlags(event) & CG_FLAG_FN == 0
+                }
+                _ => false,
+            };
+            if is_fn_release {
+                state.fn_pressed.store(false, Ordering::Relaxed);
+                return event;
+            }
+            if let Some((label, pressed)) = modifier_event {
+                if pressed && state.fn_pressed.load(Ordering::Relaxed) {
+                    let combo = format!("Fn+{}", label);
+                    let _ = state.app_handle.emit("hotkey:fn_combo_detected", combo);
+                }
+                return event;
+            }
+            // Detect Fn+Key combos:
+            //   Intel: CG_FLAG_FN is set in the event flags when Fn is physically held.
+            //   Apple Silicon: Globe sets fn_pressed=true but may NOT set CG_FLAG_FN on
+            //   subsequent events, so we check both.
+            if event_type == CG_EVENT_KEY_DOWN {
+                let flags = CGEventGetFlags(event);
+                let fn_held = flags & CG_FLAG_FN != 0 || state.fn_pressed.load(Ordering::Relaxed);
+                if fn_held {
+                    // Primary: hardware keycode table (reliable regardless of modifier state)
+                    let label = fn_recording_keycode_to_label(keycode)
+                        .map(|s| s.to_string())
+                        .or_else(|| {
+                            // Fallback: unicode string (may fail when Fn/Globe is held)
+                            let mut buf = [0u16; 8];
+                            let mut len = 0usize;
+                            CGEventKeyboardGetUnicodeString(event, 8, &mut len, buf.as_mut_ptr());
+                            if len > 0 {
+                                let ch: String = char::decode_utf16(buf[..len].iter().copied())
+                                    .filter_map(|r| r.ok())
+                                    .collect::<String>()
+                                    .to_uppercase();
+                                if !ch.is_empty() && ch.chars().all(|c| !c.is_control()) {
+                                    Some(ch)
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
+                        });
+                    if let Some(label) = label {
+                        let combo = format!("Fn+{}", label);
+                        let _ = state.app_handle.emit("hotkey:fn_combo_detected", combo);
+                    }
+                }
             }
             return event;
         }
@@ -1333,9 +1568,7 @@ fn register_fn_key_tap(
         }
 
         // Helper: send a debounced press signal.
-        // is_translate = true when Shift is held and fn_translate is enabled.
-        // Returns true if the signal was actually sent (not throttled).
-        let try_send_press = |state: &TapState, flags: u64| -> bool {
+        let try_send_press = |state: &TapState, is_translate: bool| -> bool {
             let now_ms = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
@@ -1345,9 +1578,6 @@ fn register_fn_key_tap(
                 return false; // within debounce window — suppress
             }
             state.last_press_ms.store(now_ms, Ordering::Relaxed);
-            let shift_held = flags & CG_FLAG_SHIFT != 0;
-            let is_translate =
-                shift_held && state.fn_translate.load(Ordering::Relaxed);
             let _ = state.tx.send(is_translate);
             true
         };
@@ -1355,8 +1585,16 @@ fn register_fn_key_tap(
         match event_type {
             CG_EVENT_KEY_DOWN if keycode == GLOBE_KEYCODE => {
                 if !state.fn_pressed.swap(true, Ordering::Relaxed) {
-                    let flags = CGEventGetFlags(event);
-                    try_send_press(state, flags);
+                    if let Some(is_translate) = best_fn_target_for_pressed_modifiers(state) {
+                        try_send_press(state, is_translate);
+                    } else if state
+                        .fn_hotkey_extra
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner())
+                        .is_none()
+                    {
+                        try_send_press(state, false);
+                    }
                 }
             }
             CG_EVENT_KEY_UP if keycode == GLOBE_KEYCODE => {
@@ -1369,10 +1607,65 @@ fn register_fn_key_tap(
                 let fn_down = flags & CG_FLAG_FN != 0;
                 if fn_down {
                     if !state.fn_pressed.swap(true, Ordering::Relaxed) {
-                        try_send_press(state, flags);
+                        if let Some(is_translate) = best_fn_target_for_pressed_modifiers(state) {
+                            try_send_press(state, is_translate);
+                        } else if state
+                            .fn_hotkey_extra
+                            .lock()
+                            .unwrap_or_else(|e| e.into_inner())
+                            .is_none()
+                        {
+                            try_send_press(state, false);
+                        }
                     }
                 } else {
                     state.fn_pressed.store(false, Ordering::Relaxed);
+                }
+            }
+            CG_EVENT_FLAGS_CHANGED => {
+                if let Some((label, pressed)) = modifier_event {
+                    if pressed && state.fn_pressed.load(Ordering::Relaxed) {
+                        if let Some((_, is_translate)) = best_fn_target_for_label(state, label) {
+                            try_send_press(state, is_translate);
+                        }
+                    }
+                }
+            }
+            CG_EVENT_KEY_DOWN => {
+                // Any other key pressed while Fn is held → check for Fn+Key combo hotkey.
+                // Intel: CG_FLAG_FN is set in the event flags when Fn is physically held.
+                // Apple Silicon: Globe press sets fn_pressed=true but may NOT set CG_FLAG_FN
+                // on subsequent key events, so we check both.
+                let flags = CGEventGetFlags(event);
+                let fn_held = flags & CG_FLAG_FN != 0 || state.fn_pressed.load(Ordering::Relaxed);
+                if fn_held {
+                    let label = fn_recording_keycode_to_label(keycode)
+                        .map(|s| s.to_string())
+                        .or_else(|| {
+                            let mut buf = [0u16; 8];
+                            let mut len = 0usize;
+                            CGEventKeyboardGetUnicodeString(event, 8, &mut len, buf.as_mut_ptr());
+                            if len > 0 {
+                                let ch: String = char::decode_utf16(buf[..len].iter().copied())
+                                    .filter_map(|r| r.ok())
+                                    .collect::<String>()
+                                    .to_uppercase();
+                                if !ch.is_empty() && ch.chars().all(|c| !c.is_control()) {
+                                    Some(ch)
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
+                        });
+                    if let Some(label) = label {
+                        if let Some((_, is_translate)) =
+                            best_fn_target_for_label(state, label.as_str())
+                        {
+                            try_send_press(state, is_translate);
+                        }
+                    }
                 }
             }
             _ => {}
@@ -1389,11 +1682,20 @@ fn register_fn_key_tap(
             let state = Box::new(TapState {
                 enabled,
                 recording,
-                fn_translate,
                 fn_pressed: AtomicBool::new(false),
+                left_shift_pressed: AtomicBool::new(false),
+                right_shift_pressed: AtomicBool::new(false),
+                left_ctrl_pressed: AtomicBool::new(false),
+                right_ctrl_pressed: AtomicBool::new(false),
+                left_alt_pressed: AtomicBool::new(false),
+                right_alt_pressed: AtomicBool::new(false),
+                left_meta_pressed: AtomicBool::new(false),
+                right_meta_pressed: AtomicBool::new(false),
                 last_press_ms: std::sync::atomic::AtomicU64::new(0),
                 tx,
                 app_handle: app_handle2,
+                fn_hotkey_extra,
+                fn_translate_extra,
             });
             let state_ptr = Box::into_raw(state) as *mut c_void;
 
@@ -1430,7 +1732,8 @@ fn register_fn_key_tap(
     _app_handle: tauri::AppHandle,
     _enabled: Arc<AtomicBool>,
     _recording: Arc<AtomicBool>,
-    _fn_translate: Arc<AtomicBool>,
+    _fn_translate_extra: Arc<Mutex<Option<String>>>,
+    _fn_hotkey_extra: Arc<Mutex<Option<String>>>,
 ) {
 }
 
@@ -1599,6 +1902,115 @@ fn parse_hotkey(s: &str) -> Option<Shortcut> {
     Some(Shortcut::new(mods, code))
 }
 
+fn parse_fn_hotkey_extra(hotkey: &str) -> Option<String> {
+    if !hotkey.starts_with("Fn") || hotkey == "Fn" {
+        return None;
+    }
+    hotkey.strip_prefix("Fn+").map(|s| s.to_string())
+}
+
+fn keycode_to_label(kc: i64) -> Option<&'static str> {
+    match kc {
+        0 => Some("A"),
+        1 => Some("S"),
+        2 => Some("D"),
+        3 => Some("F"),
+        4 => Some("H"),
+        5 => Some("G"),
+        6 => Some("Z"),
+        7 => Some("X"),
+        8 => Some("C"),
+        9 => Some("V"),
+        11 => Some("B"),
+        12 => Some("Q"),
+        13 => Some("W"),
+        14 => Some("E"),
+        15 => Some("R"),
+        16 => Some("Y"),
+        17 => Some("T"),
+        18 => Some("1"),
+        19 => Some("2"),
+        20 => Some("3"),
+        21 => Some("4"),
+        22 => Some("6"),
+        23 => Some("5"),
+        24 => Some("="),
+        25 => Some("9"),
+        26 => Some("7"),
+        27 => Some("-"),
+        28 => Some("8"),
+        29 => Some("0"),
+        30 => Some("]"),
+        31 => Some("O"),
+        32 => Some("U"),
+        33 => Some("["),
+        34 => Some("I"),
+        35 => Some("P"),
+        36 => Some("Enter"),
+        37 => Some("L"),
+        38 => Some("J"),
+        39 => Some("'"),
+        40 => Some("K"),
+        41 => Some(";"),
+        42 => Some("\\"),
+        43 => Some(","),
+        44 => Some("/"),
+        45 => Some("N"),
+        46 => Some("M"),
+        47 => Some("."),
+        48 => Some("Tab"),
+        49 => Some("Space"),
+        50 => Some("`"),
+        51 => Some("Backspace"),
+        53 => Some("Escape"),
+        122 => Some("F1"),
+        120 => Some("F2"),
+        99 => Some("F3"),
+        118 => Some("F4"),
+        96 => Some("F5"),
+        97 => Some("F6"),
+        98 => Some("F7"),
+        100 => Some("F8"),
+        101 => Some("F9"),
+        109 => Some("F10"),
+        103 => Some("F11"),
+        111 => Some("F12"),
+        _ => None,
+    }
+}
+
+fn fn_modifier_keycode_to_label(kc: i64) -> Option<&'static str> {
+    match kc {
+        54 => Some("RightMeta"),
+        55 => Some("LeftMeta"),
+        56 => Some("LeftShift"),
+        58 => Some("LeftAlt"),
+        59 => Some("LeftCtrl"),
+        60 => Some("RightShift"),
+        61 => Some("RightAlt"),
+        62 => Some("RightCtrl"),
+        _ => None,
+    }
+}
+
+fn fn_recording_keycode_to_label(kc: i64) -> Option<&'static str> {
+    fn_modifier_keycode_to_label(kc).or_else(|| keycode_to_label(kc))
+}
+
+fn fn_extra_match_score(expected: &str, actual: &str) -> u8 {
+    if expected.eq_ignore_ascii_case(actual) {
+        return 2;
+    }
+
+    match (expected, actual) {
+        ("Shift", "LeftShift" | "RightShift")
+        | ("Ctrl", "LeftCtrl" | "RightCtrl")
+        | ("Alt", "LeftAlt" | "RightAlt")
+        | ("Meta", "LeftMeta" | "RightMeta") => 1,
+        _ => 0,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1693,6 +2105,20 @@ mod tests {
             assert!(s.is_some(), "Failed to parse Alt+{}", key);
             assert_eq!(s.unwrap().key, expected);
         }
+    }
+
+    #[test]
+    fn test_fn_modifier_keycode_to_label_distinguishes_left_and_right_shift() {
+        assert_eq!(fn_modifier_keycode_to_label(56), Some("LeftShift"));
+        assert_eq!(fn_modifier_keycode_to_label(60), Some("RightShift"));
+    }
+
+    #[test]
+    fn test_fn_extra_match_score_allows_generic_and_exact_shift_matches() {
+        assert_eq!(fn_extra_match_score("Shift", "LeftShift"), 1);
+        assert_eq!(fn_extra_match_score("Shift", "RightShift"), 1);
+        assert_eq!(fn_extra_match_score("LeftShift", "LeftShift"), 2);
+        assert_eq!(fn_extra_match_score("LeftShift", "RightShift"), 0);
     }
 }
 pub fn run() {
@@ -1853,10 +2279,15 @@ pub fn run() {
             let initial_config =
                 tauri::async_runtime::block_on(config_manager.load()).unwrap_or_default();
 
-            let fn_hotkey_enabled = Arc::new(AtomicBool::new(initial_config.hotkey == "Fn"));
+            let fn_hotkey_enabled =
+                Arc::new(AtomicBool::new(initial_config.hotkey.starts_with("Fn")));
             let fn_hotkey_recording = Arc::new(AtomicBool::new(false));
-            let fn_hotkey_translate =
-                Arc::new(AtomicBool::new(initial_config.translate_hotkey == "Fn+Shift"));
+            let fn_hotkey_extra: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(
+                parse_fn_hotkey_extra(&initial_config.hotkey),
+            ));
+            let fn_translate_extra: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(
+                parse_fn_hotkey_extra(&initial_config.translate_hotkey),
+            ));
 
             app.manage(config_manager);
             app.manage(history_store);
@@ -1869,7 +2300,8 @@ pub fn run() {
             app.manage(FnHotkeyState {
                 enabled: fn_hotkey_enabled.clone(),
                 recording: fn_hotkey_recording.clone(),
-                fn_translate: fn_hotkey_translate.clone(),
+                fn_hotkey_extra: fn_hotkey_extra.clone(),
+                fn_translate_extra: fn_translate_extra.clone(),
             });
             let translate_hotkey_arc = Arc::new(Mutex::new(initial_config.translate_hotkey.clone()));
             app.manage(TranslateHotkeyCache(translate_hotkey_arc.clone()));
@@ -1893,7 +2325,7 @@ pub fn run() {
                     .with_handler(handler)
                     .build(),
             )?;
-            if initial_config.hotkey != "Fn" {
+            if !initial_config.hotkey.starts_with("Fn") {
                 let shortcut =
                     parse_hotkey(&initial_config.hotkey).unwrap_or_else(default_shortcut);
                 if let Err(e) = app.global_shortcut().register(shortcut) {
@@ -1904,9 +2336,9 @@ pub fn run() {
                 }
             }
 
-            // Register translate hotkey if configured (skip "Fn+Shift" — handled by CGEventTap)
+            // Register translate hotkey if configured (skip Fn-family hotkeys — handled by CGEventTap)
             if !initial_config.translate_hotkey.is_empty()
-                && initial_config.translate_hotkey != "Fn+Shift"
+                && !initial_config.translate_hotkey.starts_with("Fn")
             {
                 if let Some(t_shortcut) = parse_hotkey(&initial_config.translate_hotkey) {
                     if let Err(e) = app.global_shortcut().register(t_shortcut) {
@@ -1923,7 +2355,8 @@ pub fn run() {
                 app_handle.clone(),
                 fn_hotkey_enabled,
                 fn_hotkey_recording,
-                fn_hotkey_translate,
+                fn_translate_extra,
+                fn_hotkey_extra,
             );
 
             // System tray
@@ -2141,6 +2574,7 @@ pub fn run() {
             model_manager::get_sensevoice_model_status,
             model_manager::download_sensevoice_model,
             model_manager::delete_sensevoice_model,
+            get_os_version,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
