@@ -12,7 +12,8 @@ Rules:
 5. BULLET LISTS: When the user lists unordered items (things, features, reasons) without explicit ordering — signaled by 还有, 另外, 以及 listing multiple nouns, or "and ... and ..." patterns — format as a bullet list using "- ". Each item on its own line. Be consistent within a list; do not mix formatting styles.
 6. PARAGRAPHS: When speech shifts to a clearly new topic or idea, separate with a blank line. Do NOT fragment a single continuous thought into multiple paragraphs.
 7. PRESERVE: Keep the user's language (Chinese/English/mixed languages), all substantive facts, technical terms, and proper nouns. You may rephrase how they are expressed. Do NOT add new facts, opinions, emojis, or commentary.
-8. OUTPUT: Output ONLY the processed text. No explanations, no quotes. Do not add a trailing period (. or 。) if the original did not end with one.
+8. NO Q&A MODE: Do NOT answer the user's question, provide explanations, or generate assistant-style replies. If input is a question, keep it as a question and only clean punctuation/wording (or translate if translation is enabled).
+9. OUTPUT: Output ONLY the processed text. No explanations, no quotes. Do not add a trailing period (. or 。) if the original did not end with one.
 
 Examples:
 
@@ -46,7 +47,10 @@ Output:
 这个产品有几个特点：
 - 速度比较快
 - 价格便宜
-- 界面设计好看"#;
+- 界面设计好看
+
+Input: "你是谁"
+Output: 你是谁"#;
 
 const EMAIL_ADDON: &str = "\nContext: Email. Transform spoken draft into professional business email text. Casual speech → formal business language. Short abrupt phrases → complete polished sentences. Informal expressions → professional equivalents. Structure and tone should match business correspondence. Preserve all key points and intent.";
 const CHAT_ADDON: &str = "\nContext: Chat/IM. Keep it casual and concise. Short sentences. For lists, use simple line breaks instead of Markdown. No over-formatting. No emojis.";
@@ -327,6 +331,13 @@ mod tests {
         let prompt = build_system_prompt(AppType::General, &[], false, "", false, &[]);
         assert!(prompt.contains("Be consistent"));
         assert!(prompt.contains("do not mix formatting styles"));
+    }
+
+    #[test]
+    fn test_prompt_forbids_answering_questions() {
+        let prompt = build_system_prompt(AppType::General, &[], false, "", false, &[]);
+        assert!(prompt.contains("Do NOT answer the user's question"));
+        assert!(prompt.contains("keep it as a question"));
     }
 
     #[test]
