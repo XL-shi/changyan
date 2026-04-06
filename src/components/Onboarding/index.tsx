@@ -1,18 +1,25 @@
 import { AnimatePresence, motion } from 'framer-motion'
+import { listen } from '@tauri-apps/api/event'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../../stores/appStore'
 // import { useAuthStore } from '../../stores/authStore'
-import { saveOnboardingCompleted, updateConfig as saveConfig } from '../../lib/tauri'
+import {
+  saveOnboardingCompleted,
+  updateConfig as saveConfig,
+  getSenseVoiceModelStatus,
+  downloadSenseVoiceModel,
+  type ModelDownloadProgress,
+} from '../../lib/tauri'
 import { OnboardingLayout } from './OnboardingLayout'
 import { WelcomeStep } from './WelcomeStep'
 // import { AccountStep } from './AccountStep'
 // ModeSelectStep removed — defaults to BYOK (API key setup)
 import { LlmSetupStep } from './LlmSetupStep'
-import { QuickTestStep } from './QuickTestStep'
 import { DoneStep } from './DoneStep'
 import { slideRight } from '../../lib/animations'
 
-const TOTAL_STEPS = 4
+const TOTAL_STEPS = 3
 
 export function Onboarding() {
   const { t } = useTranslation()
@@ -21,8 +28,11 @@ export function Onboarding() {
   const setOnboardingCompleted = useAppStore((s) => s.setOnboardingCompleted)
   const llmTestStatus = useAppStore((s) => s.llmTestStatus)
   const updateConfig = useAppStore((s) => s.updateConfig)
+  const [isFinalizing, setIsFinalizing] = useState(false)
+  const [modelDownloadProgress, setModelDownloadProgress] = useState(0)
+  const [modelDownloadError, setModelDownloadError] = useState<string | null>(null)
 
-  // Steps: 0: Welcome, 1: LlmSetup, 2: QuickTest, 3: Done
+  // Steps: 0: Welcome, 1: LlmSetup, 2: Done
   const canNext = (() => {
     switch (step) {
       case 0:
@@ -30,8 +40,6 @@ export function Onboarding() {
       case 1:
         return llmTestStatus === 'success' // LLM must pass
       case 2:
-        return true // Quick test — optional
-      case 3:
         return true // Done
       default:
         return false
@@ -48,14 +56,55 @@ export function Onboarding() {
       title: t('onboarding.aiPolish'),
       subtitle: t('onboarding.aiPolishDesc'),
     },
-    {
-      title: t('onboarding.tryItOut'),
-      subtitle: t('onboarding.tryItOutDesc'),
-    },
     { title: t('onboarding.setupComplete'), subtitle: undefined },
   ]
 
   const config = useAppStore((s) => s.config)
+
+  useEffect(() => {
+    let unlistenProgress: (() => void) | undefined
+    let unlistenComplete: (() => void) | undefined
+
+    listen<ModelDownloadProgress>('model:download-progress', (e) => {
+      setModelDownloadProgress(e.payload.percent)
+    }).then((fn) => {
+      unlistenProgress = fn
+    })
+
+    listen('model:download-complete', () => {
+      setModelDownloadProgress(100)
+    }).then((fn) => {
+      unlistenComplete = fn
+    })
+
+    return () => {
+      unlistenProgress?.()
+      unlistenComplete?.()
+    }
+  }, [])
+
+  const completeOnboarding = async () => {
+    setIsFinalizing(true)
+    setModelDownloadError(null)
+    try {
+      await saveConfig(config)
+
+      if (config.stt_provider === 'sensevoice-local') {
+        const status = await getSenseVoiceModelStatus()
+        if (!status.isDownloaded) {
+          setModelDownloadProgress(0)
+          await downloadSenseVoiceModel()
+        }
+      }
+
+      await saveOnboardingCompleted()
+      setOnboardingCompleted(true)
+    } catch (error) {
+      setModelDownloadError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setIsFinalizing(false)
+    }
+  }
 
   const handleNext = async () => {
     if (step < TOTAL_STEPS - 1) {
@@ -72,9 +121,7 @@ export function Onboarding() {
 
       setStep(step + 1)
     } else {
-      await saveConfig(config)
-      await saveOnboardingCompleted()
-      setOnboardingCompleted(true)
+      await completeOnboarding()
     }
   }
 
@@ -91,9 +138,7 @@ export function Onboarding() {
   }
 
   const handleSkip = async () => {
-    await saveConfig(config)
-    await saveOnboardingCompleted()
-    setOnboardingCompleted(true)
+    await completeOnboarding()
   }
 
   return (
@@ -102,12 +147,18 @@ export function Onboarding() {
       totalSteps={TOTAL_STEPS}
       title={titles[step].title}
       subtitle={titles[step].subtitle}
-      canNext={canNext}
+      canNext={canNext && !isFinalizing}
       canBack={step > 0}
-      nextLabel={step === TOTAL_STEPS - 1 ? t('onboarding.getStarted') : t('onboarding.next')}
+      nextLabel={
+        step === TOTAL_STEPS - 1
+          ? isFinalizing && config.stt_provider === 'sensevoice-local'
+            ? `${t('settings.downloadingModel')} ${Math.round(modelDownloadProgress)}%`
+            : t('onboarding.getStarted')
+          : t('onboarding.next')
+      }
       onNext={handleNext}
       onBack={handleBack}
-      onSkip={handleSkip}
+      onSkip={isFinalizing ? undefined : handleSkip}
     >
       <AnimatePresence mode="wait">
         <motion.div
@@ -121,8 +172,14 @@ export function Onboarding() {
           {step === 0 && <WelcomeStep />}
           {/* STT step removed — STT is built-in local SenseVoice Small */}
           {step === 1 && <LlmSetupStep />}
-          {step === 2 && <QuickTestStep />}
-          {step === 3 && <DoneStep />}
+          {step === 2 && (
+            <DoneStep
+              isFinalizing={isFinalizing}
+              modelDownloadProgress={modelDownloadProgress}
+              modelDownloadError={modelDownloadError}
+              showModelDownloadStatus={config.stt_provider === 'sensevoice-local'}
+            />
+          )}
         </motion.div>
       </AnimatePresence>
     </OnboardingLayout>

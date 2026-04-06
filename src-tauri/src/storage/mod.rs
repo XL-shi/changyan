@@ -53,10 +53,18 @@ impl Default for AppConfig {
             close_to_tray: true,
             start_minimized: false,
             max_recording_seconds: 30,
-            translate_hotkey: "Fn+Shift".to_string(),
+            translate_hotkey: "Fn+LeftShift".to_string(),
             ui_language: "en".to_string(),
         }
     }
+}
+
+fn migrate_legacy_hotkeys(config: &mut AppConfig) -> bool {
+    if config.translate_hotkey == "Fn+Shift" {
+        config.translate_hotkey = "Fn+LeftShift".to_string();
+        return true;
+    }
+    false
 }
 
 // ─── ConfigManager (tauri-plugin-store backed) ───
@@ -79,13 +87,24 @@ impl ConfigManager {
             return Ok(config);
         }
 
-        let config = match self.app_handle.store("settings.json") {
+        let mut config = match self.app_handle.store("settings.json") {
             Ok(store) => match store.get("app_config") {
                 Some(val) => serde_json::from_value::<AppConfig>(val.clone()).unwrap_or_default(),
                 None => AppConfig::default(),
             },
             Err(_) => AppConfig::default(),
         };
+
+        // One-time migration for old translate hotkey defaults:
+        // Fn+Shift -> Fn+LeftShift.
+        if migrate_legacy_hotkeys(&mut config) {
+            if let Ok(store) = self.app_handle.store("settings.json") {
+                if let Ok(val) = serde_json::to_value(&config) {
+                    store.set("app_config", val);
+                    let _ = store.save();
+                }
+            }
+        }
 
         *self.cache.lock().unwrap_or_else(|e| e.into_inner()) = Some(config.clone());
         Ok(config)
@@ -299,5 +318,32 @@ impl DictionaryStore {
             Err(_) => return Vec::new(),
         };
         rows.filter_map(|r| r.ok()).collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn migrate_legacy_translate_hotkey_to_left_shift() {
+        let mut config = AppConfig {
+            translate_hotkey: "Fn+Shift".to_string(),
+            ..AppConfig::default()
+        };
+        let migrated = migrate_legacy_hotkeys(&mut config);
+        assert!(migrated);
+        assert_eq!(config.translate_hotkey, "Fn+LeftShift");
+    }
+
+    #[test]
+    fn keep_existing_translate_hotkey_when_not_legacy_value() {
+        let mut config = AppConfig {
+            translate_hotkey: "Fn+RightShift".to_string(),
+            ..AppConfig::default()
+        };
+        let migrated = migrate_legacy_hotkeys(&mut config);
+        assert!(!migrated);
+        assert_eq!(config.translate_hotkey, "Fn+RightShift");
     }
 }

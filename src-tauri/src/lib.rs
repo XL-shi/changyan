@@ -1297,7 +1297,7 @@ fn register_fn_key_tap(
     // - tap when idle   → start recording (or translate session if is_translate)
     // - tap when recording → stop (finalize)
     // - tap when stuck  → force cancel back to idle
-    // Channel sends bool: true = translate session (Fn+Shift), false = normal recording.
+    // Channel sends bool: true = translate session (Fn+LeftShift/RightShift...), false = normal.
     let (tx, rx) = std::sync::mpsc::channel::<bool>();
     std::thread::spawn({
         let app_handle = app_handle.clone();
@@ -1341,6 +1341,8 @@ fn register_fn_key_tap(
         /// True while the user is recording a hotkey in Settings UI.
         recording: Arc<AtomicBool>,
         fn_pressed: AtomicBool,
+        /// Tracks whether current Fn press already emitted a pipeline signal.
+        fn_press_consumed: AtomicBool,
         left_shift_pressed: AtomicBool,
         right_shift_pressed: AtomicBool,
         left_ctrl_pressed: AtomicBool,
@@ -1579,12 +1581,14 @@ fn register_fn_key_tap(
             }
             state.last_press_ms.store(now_ms, Ordering::Relaxed);
             let _ = state.tx.send(is_translate);
+            state.fn_press_consumed.store(true, Ordering::Relaxed);
             true
         };
 
         match event_type {
             CG_EVENT_KEY_DOWN if keycode == GLOBE_KEYCODE => {
                 if !state.fn_pressed.swap(true, Ordering::Relaxed) {
+                    state.fn_press_consumed.store(false, Ordering::Relaxed);
                     if let Some(is_translate) = best_fn_target_for_pressed_modifiers(state) {
                         try_send_press(state, is_translate);
                     } else if state
@@ -1593,12 +1597,48 @@ fn register_fn_key_tap(
                         .unwrap_or_else(|e| e.into_inner())
                         .is_none()
                     {
-                        try_send_press(state, false);
+                        let main_extra = state
+                            .fn_hotkey_extra
+                            .lock()
+                            .unwrap_or_else(|e| e.into_inner())
+                            .clone();
+                        let translate_extra = state
+                            .fn_translate_extra
+                            .lock()
+                            .unwrap_or_else(|e| e.into_inner())
+                            .clone();
+                        // If plain Fn is main hotkey but translate is Fn+modifier,
+                        // defer plain-Fn trigger to key-up so Fn+modifier can win.
+                        if !should_defer_plain_fn_trigger(
+                            main_extra.as_deref(),
+                            translate_extra.as_deref(),
+                        ) {
+                            try_send_press(state, false);
+                        }
                     }
                 }
             }
             CG_EVENT_KEY_UP if keycode == GLOBE_KEYCODE => {
-                state.fn_pressed.store(false, Ordering::Relaxed);
+                let was_pressed = state.fn_pressed.swap(false, Ordering::Relaxed);
+                let main_extra = state
+                    .fn_hotkey_extra
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .clone();
+                let translate_extra = state
+                    .fn_translate_extra
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .clone();
+                if was_pressed
+                    && !state.fn_press_consumed.load(Ordering::Relaxed)
+                    && should_defer_plain_fn_trigger(
+                        main_extra.as_deref(),
+                        translate_extra.as_deref(),
+                    )
+                {
+                    try_send_press(state, false);
+                }
             }
             CG_EVENT_FLAGS_CHANGED if keycode == FN_KEYCODE => {
                 // Fn key on Intel Macs generates FlagsChanged; flag bit indicates
@@ -1607,6 +1647,7 @@ fn register_fn_key_tap(
                 let fn_down = flags & CG_FLAG_FN != 0;
                 if fn_down {
                     if !state.fn_pressed.swap(true, Ordering::Relaxed) {
+                        state.fn_press_consumed.store(false, Ordering::Relaxed);
                         if let Some(is_translate) = best_fn_target_for_pressed_modifiers(state) {
                             try_send_press(state, is_translate);
                         } else if state
@@ -1615,11 +1656,45 @@ fn register_fn_key_tap(
                             .unwrap_or_else(|e| e.into_inner())
                             .is_none()
                         {
-                            try_send_press(state, false);
+                            let main_extra = state
+                                .fn_hotkey_extra
+                                .lock()
+                                .unwrap_or_else(|e| e.into_inner())
+                                .clone();
+                            let translate_extra = state
+                                .fn_translate_extra
+                                .lock()
+                                .unwrap_or_else(|e| e.into_inner())
+                                .clone();
+                            if !should_defer_plain_fn_trigger(
+                                main_extra.as_deref(),
+                                translate_extra.as_deref(),
+                            ) {
+                                try_send_press(state, false);
+                            }
                         }
                     }
                 } else {
-                    state.fn_pressed.store(false, Ordering::Relaxed);
+                    let was_pressed = state.fn_pressed.swap(false, Ordering::Relaxed);
+                    let main_extra = state
+                        .fn_hotkey_extra
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner())
+                        .clone();
+                    let translate_extra = state
+                        .fn_translate_extra
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner())
+                        .clone();
+                    if was_pressed
+                        && !state.fn_press_consumed.load(Ordering::Relaxed)
+                        && should_defer_plain_fn_trigger(
+                            main_extra.as_deref(),
+                            translate_extra.as_deref(),
+                        )
+                    {
+                        try_send_press(state, false);
+                    }
                 }
             }
             CG_EVENT_FLAGS_CHANGED => {
@@ -1683,6 +1758,7 @@ fn register_fn_key_tap(
                 enabled,
                 recording,
                 fn_pressed: AtomicBool::new(false),
+                fn_press_consumed: AtomicBool::new(false),
                 left_shift_pressed: AtomicBool::new(false),
                 right_shift_pressed: AtomicBool::new(false),
                 left_ctrl_pressed: AtomicBool::new(false),
@@ -2011,6 +2087,10 @@ fn fn_extra_match_score(expected: &str, actual: &str) -> u8 {
     }
 }
 
+fn should_defer_plain_fn_trigger(main_extra: Option<&str>, translate_extra: Option<&str>) -> bool {
+    main_extra.is_none() && translate_extra.is_some()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2119,6 +2199,13 @@ mod tests {
         assert_eq!(fn_extra_match_score("Shift", "RightShift"), 1);
         assert_eq!(fn_extra_match_score("LeftShift", "LeftShift"), 2);
         assert_eq!(fn_extra_match_score("LeftShift", "RightShift"), 0);
+    }
+
+    #[test]
+    fn test_should_defer_plain_fn_trigger_when_translate_uses_fn_modifier() {
+        assert!(!should_defer_plain_fn_trigger(None, None));
+        assert!(should_defer_plain_fn_trigger(None, Some("LeftShift")));
+        assert!(!should_defer_plain_fn_trigger(Some("A"), Some("LeftShift")));
     }
 }
 pub fn run() {

@@ -1,9 +1,21 @@
 import { motion } from 'framer-motion'
-import { Check } from 'lucide-react'
+import { Check, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../../stores/appStore'
 
-export function DoneStep() {
+interface DoneStepProps {
+  isFinalizing?: boolean
+  modelDownloadProgress?: number
+  modelDownloadError?: string | null
+  showModelDownloadStatus?: boolean
+}
+
+export function DoneStep({
+  isFinalizing = false,
+  modelDownloadProgress = 0,
+  modelDownloadError = null,
+  showModelDownloadStatus = false,
+}: DoneStepProps) {
   const { t } = useTranslation()
   const config = useAppStore((s) => s.config)
 
@@ -31,6 +43,21 @@ export function DoneStep() {
           {t('onboarding.capsuleOnDesktop')}
         </p> */}
       </div>
+
+      {showModelDownloadStatus && (isFinalizing || modelDownloadError) && (
+        <div className="w-full rounded-[10px] bg-bg-secondary px-4 py-3 text-center">
+          {isFinalizing ? (
+            <div className="flex items-center justify-center gap-2 text-[12px] text-text-secondary">
+              <Loader2 size={13} className="animate-spin" />
+              <span>
+                {t('settings.downloadingModel')} {Math.round(modelDownloadProgress)}%
+              </span>
+            </div>
+          ) : (
+            <p className="text-[12px] text-error">{modelDownloadError}</p>
+          )}
+        </div>
+      )}
 
       {/* Usage tips */}
       <div className="w-full space-y-3">

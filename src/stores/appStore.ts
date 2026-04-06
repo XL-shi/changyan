@@ -185,7 +185,7 @@ const defaultConfig: AppConfig = {
   close_to_tray: true,
   start_minimized: false,
   max_recording_seconds: 30,
-  translate_hotkey: 'Fn+Shift',
+  translate_hotkey: 'Fn+LeftShift',
 }
 
 export const useAppStore = create<AppState>((set) => ({
