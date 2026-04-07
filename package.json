@@ -26,6 +26,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "tauri:dev:devtest": "VITE_INIT_ONBOARDING=true tauri dev --config src-tauri/tauri.conf.devtest.json",
