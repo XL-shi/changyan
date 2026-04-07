@@ -182,3 +182,8 @@ Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for developmen
 ## License
 
 [MIT](LICENSE)
+
+## 启动
+平时完整开发：npm run tauri:dev
+测 onboarding / 模型下载隔离环境：npm run tauri:dev:devtest
+只改前端页面：npm run dev
