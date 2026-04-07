@@ -62,7 +62,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.event.inputs.tag || github.ref_name }}
-          releaseName: 'OpenTypeless ${{ github.event.inputs.tag || github.ref_name }}'
+          releaseName: 'ChangYan ${{ github.event.inputs.tag || github.ref_name }}'
           releaseBody: 'See the assets below to download and install.'
           releaseDraft: true
           prerelease: false
