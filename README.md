@@ -187,3 +187,6 @@ Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for developmen
 平时完整开发：npm run tauri:dev
 测 onboarding / 模型下载隔离环境：npm run tauri:dev:devtest
 只改前端页面：npm run dev
+
+## 发布版本
+同步提高 package.json、src-tauri/Cargo.toml、src-tauri/tauri.conf.json 里的 version
