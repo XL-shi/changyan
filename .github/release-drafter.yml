@@ -43,4 +43,49 @@ template: |
 
   $CHANGES
 
+  ---
+
+  ## 📥 Installation
+
+  ### macOS
+
+  **⚠️ Important**: The app uses ad-hoc signing (free, no Apple Developer account). First launch requires manual authorization:
+
+  **Method 1 (Recommended)** - Terminal command:
+  ```bash
+  xattr -cr /Applications/ChangYan.app
+  ```
+
+  **Method 2** - Right-click open:
+  1. Drag `ChangYan.app` to Applications folder
+  2. Right-click → "Open" → Click "Open" in dialog
+  3. Only needed once, then opens normally
+
+  **Method 3** - System Settings:
+  1. Try to open (error will show)
+  2. System Settings → Privacy & Security
+  3. Click "Open Anyway" under Security section
+
+  ### Windows
+
+  Download and run the `.msi` installer.
+
+  ### Linux
+
+  - **Debian/Ubuntu**: `sudo dpkg -i changyan_*.deb`
+  - **Fedora/RHEL**: `sudo rpm -i changyan-*.rpm`
+  - **AppImage**: `chmod +x ChangYan-*.AppImage && ./ChangYan-*.AppImage`
+
+  ---
+
+  ### 🔒 About Code Signing
+
+  This project uses **ad-hoc signing** (free approach without Apple Developer Program):
+  - ✅ App is safe - fully open source
+  - ✅ Signature ensures the app hasn't been tampered with
+  - ⚠️ macOS Gatekeeper requires manual authorization on first launch
+  - ℹ️ For "double-click and run" experience, Apple Developer ID ($99/year) would be needed
+
+  ---
+
   **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION

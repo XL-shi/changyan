@@ -1,0 +1,97 @@
+name: Update Homebrew Cask
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to update (e.g., 0.1.0)'
+        required: true
+
+jobs:
+  update-cask:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${{ github.event.release.tag_name }}"
+            VERSION="${VERSION#v}"  # Remove 'v' prefix
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Download Apple Silicon DMG and calculate SHA256
+        id: sha_arm64
+        run: |
+          DMG_URL="https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.version }}/ChangYan_${{ steps.version.outputs.version }}_aarch64.dmg"
+
+          echo "Downloading from: $DMG_URL"
+
+          for i in 1 2 3; do
+            if curl -fL -o ChangYan_aarch64.dmg "$DMG_URL"; then
+              break
+            fi
+            echo "Download attempt $i failed, retrying..."
+            sleep 5
+          done
+
+          if [ ! -f ChangYan_aarch64.dmg ]; then
+            echo "Failed to download DMG after 3 attempts"
+            exit 1
+          fi
+
+          SHA256=$(shasum -a 256 ChangYan_aarch64.dmg | awk '{print $1}')
+          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
+          echo "Apple Silicon SHA256: $SHA256"
+
+      - name: Update Cask file
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          SHA256="${{ steps.sha_arm64.outputs.sha256 }}"
+
+          # Update version
+          sed -i '' "s/version \".*\"/version \"$VERSION\"/" Casks/changyan.rb
+
+          # Update SHA256 (handles both :no_check and existing hash)
+          sed -i '' "s/sha256 :no_check/sha256 \"$SHA256\"/" Casks/changyan.rb
+          sed -i '' "s/sha256 \"[a-f0-9]*\"/sha256 \"$SHA256\"/" Casks/changyan.rb
+
+          echo "Updated Cask file:"
+          cat Casks/changyan.rb
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add Casks/changyan.rb
+
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "chore: update Homebrew Cask to ${{ steps.version.outputs.version }}"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Comment on release
+        if: github.event_name == 'release'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.release.id,
+              body: `Homebrew Cask updated to ${{ steps.version.outputs.version }}.\n\nInstall:\n\`\`\`bash\nbrew tap ${{ github.repository_owner }}/changyan https://github.com/${{ github.repository }}\nbrew install --cask changyan\n\`\`\`\n\nUpgrade:\n\`\`\`bash\nbrew upgrade --cask changyan\n\`\`\``
+            })

@@ -30,7 +30,12 @@ npm run dev           # Start Vite dev server (port 1420)
 npm run tauri dev     # Start full Tauri app (frontend + Rust backend)
 
 # Build
-npm run tauri build   # Production build for current platform
+npm run tauri build         # Production build for current platform
+npm run tauri:build:signed  # Build + ad-hoc sign (macOS only)
+
+# Manual signing (macOS)
+./scripts/adhoc-sign.sh /path/to/ChangYan.app
+./scripts/build-and-sign.sh  # Build, sign, and create DMG
 
 # Lint & Format (run before committing)
 npx tsc --noEmit                          # TypeScript check

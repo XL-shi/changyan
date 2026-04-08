@@ -60,6 +60,14 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          # macOS code signing (Developer ID - requires paid Apple Developer account)
+          # If not set, ad-hoc signing will be applied in the next step
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           tagName: ${{ github.event.inputs.tag || github.ref_name }}
           releaseName: 'ChangYan ${{ github.event.inputs.tag || github.ref_name }}'
@@ -67,3 +75,60 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+      - name: Apply ad-hoc signature (macOS fallback)
+        if: matrix.platform == 'macos-latest'
+        run: |
+          # This step runs on all macOS builds
+          # If APPLE_CERTIFICATE is set, tauri-action already signed it, so we skip
+          # If APPLE_CERTIFICATE is not set, we apply ad-hoc signature
+
+          if [ -n "${{ secrets.APPLE_CERTIFICATE }}" ]; then
+            echo "✅ Developer ID certificate detected, skipping ad-hoc signature"
+            exit 0
+          fi
+
+          echo "🔐 No Developer ID certificate found, applying ad-hoc signature..."
+
+          APP_PATH=$(find src-tauri/target/*/release/bundle/macos -name "*.app" -maxdepth 1 2>/dev/null | head -n 1)
+
+          if [ -n "$APP_PATH" ]; then
+            echo "📦 Found: $APP_PATH"
+
+            # Sign all binaries recursively
+            find "$APP_PATH/Contents" -type f \( -perm -111 -o -name "*.dylib" -o -name "*.so" \) 2>/dev/null | while read binary; do
+              echo "  Signing: $binary"
+              codesign --force --sign - --timestamp=none "$binary" 2>/dev/null || true
+            done
+
+            # Sign the app bundle
+            codesign --force --deep --sign - --timestamp=none "$APP_PATH"
+
+            # Verify
+            echo "🔍 Verifying signature..."
+            codesign -dv "$APP_PATH" 2>&1 | grep -E "(Signature=|Identifier=)" || true
+
+            echo "✅ Ad-hoc signature applied"
+          else
+            echo "⚠️  No .app bundle found, skipping signature"
+          fi
+
+      - name: Build PKG installer (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: |
+          APP_PATH=$(find src-tauri/target/*/release/bundle/macos -name "*.app" -maxdepth 1 2>/dev/null | head -n 1)
+          if [ -n "$APP_PATH" ]; then
+            ./scripts/build-pkg.sh "$APP_PATH"
+          fi
+
+      - name: Upload PKG to release (macOS)
+        if: matrix.platform == 'macos-latest'
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          PKG_FILE="ChangYan_${VERSION}.pkg"
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          if [ -f "$PKG_FILE" ]; then
+            gh release upload "$TAG" "$PKG_FILE" --clobber
+          fi

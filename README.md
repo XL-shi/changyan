@@ -46,18 +46,66 @@ Press a hotkey, speak naturally, and ChangYan transcribes, rewrites, and outputs
 >
 > This setup gives you a low-latency local transcription path plus strong rewriting quality for daily use.
 
-## Download
+## Download & Installation
 
-Download the latest version for your platform:
+### macOS
+
+#### Option 1: Homebrew (Recommended) ⭐
+
+The easiest way to install on macOS — no manual authorization needed:
+
+```bash
+brew tap XL-shi/changyan
+brew install --cask changyan
+```
+
+**Advantages**:
+- ✅ One-line installation
+- ✅ Automatic updates with `brew upgrade`
+- ✅ No signing issues — Homebrew handles everything
+- ✅ Easy uninstall with `brew uninstall --cask changyan`
+
+#### Option 2: Manual DMG Install
 
 **[Download from Releases](https://github.com/XL-shi/changyan/releases)**
 
-| Platform | File |
-|----------|------|
-| Windows | `.msi` installer |
-| macOS (Apple Silicon) | `.dmg` |
-| macOS (Intel) | `.dmg` |
-| Linux | `.AppImage` / `.deb` |
+| Architecture | File |
+|--------------|------|
+| Apple Silicon (M1/M2/M3) | `ChangYan_*_aarch64.dmg` |
+| Intel | `ChangYan_*_x86_64.dmg` |
+
+**⚠️ Important**: The app uses ad-hoc signing (free, no Apple Developer account). First launch requires manual authorization:
+
+**Method 1 (Easiest)** - Terminal command:
+```bash
+xattr -cr /Applications/ChangYan.app
+```
+
+**Method 2** - Right-click open:
+1. Drag `ChangYan.app` to Applications folder
+2. Right-click → "Open" → Click "Open" in dialog
+3. Only needed once, then opens normally
+
+**Method 3** - System Settings:
+1. Try to open the app (error will show)
+2. Open System Settings → Privacy & Security
+3. Click "Open Anyway" under Security section
+
+> **Why?** macOS Gatekeeper blocks apps without Apple Developer ID ($99/year). The ad-hoc signature ensures the app hasn't been tampered with, but requires one-time manual authorization. **Homebrew automates this for you.**
+
+### Windows
+
+**[Download from Releases](https://github.com/XL-shi/changyan/releases)**
+
+Download and run the `.msi` installer.
+
+### Linux
+
+**[Download from Releases](https://github.com/XL-shi/changyan/releases)**
+
+- **Debian/Ubuntu**: `sudo dpkg -i changyan_*.deb`
+- **Fedora/RHEL**: `sudo rpm -i changyan-*.rpm`
+- **AppImage**: `chmod +x ChangYan-*.AppImage && ./ChangYan-*.AppImage`
 
 ## Prerequisites
 
