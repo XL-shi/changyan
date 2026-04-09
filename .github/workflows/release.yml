@@ -49,10 +49,11 @@ jobs:
       - run: npm ci
 
       - uses: tauri-apps/tauri-action@v0
+        id: tauri-build
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
           # macOS code signing (Developer ID - requires paid Apple Developer account)
-          # If not set, ad-hoc signing will be applied in the next step
+          # If not set, ad-hoc signing will be applied
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
@@ -67,18 +68,23 @@ jobs:
           prerelease: false
           args: ${{ matrix.args }}
 
-      - name: Apply ad-hoc signature (macOS fallback)
+      - name: Check signing status
         if: runner.os == 'macOS'
+        id: check-signing
         run: |
-          # This step runs on all macOS builds
-          # If APPLE_CERTIFICATE is set, tauri-action already signed it, so we skip
-          # If APPLE_CERTIFICATE is not set, we apply ad-hoc signature
-
-          if [ -n "${{ secrets.APPLE_CERTIFICATE }}" ]; then
-            echo "✅ Developer ID certificate detected, skipping ad-hoc signature"
-            exit 0
+          if [ -n "$APPLE_CERTIFICATE" ]; then
+            echo "has_certificate=true" >> $GITHUB_OUTPUT
+            echo "✅ Developer ID certificate detected"
+          else
+            echo "has_certificate=false" >> $GITHUB_OUTPUT
+            echo "🔐 No Developer ID certificate found"
           fi
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
 
+      - name: Apply ad-hoc signature (macOS fallback)
+        if: runner.os == 'macOS' && steps.check-signing.outputs.has_certificate == 'false'
+        run: |
           echo "🔐 No Developer ID certificate found, applying ad-hoc signature..."
 
           APP_PATH=$(find src-tauri/target/*/release/bundle/macos -name "*.app" -maxdepth 1 2>/dev/null | head -n 1)
