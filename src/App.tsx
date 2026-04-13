@@ -16,7 +16,6 @@ import { HomePage } from './components/HomePage'
 import { UpgradePage } from './components/UpgradePage'
 // import { AccountPage } from './components/AccountPage'
 import { ToastContainer } from './components/Toast'
-import { CopyDialog } from './components/CopyDialog'
 
 function CapsuleApp() {
   useTauriEvents()
@@ -143,7 +142,6 @@ function MainApp() {
       {/* Account page temporarily hidden */}
       {/* {route === 'account' && <AccountPage />} */}
       <ToastContainer />
-      <CopyDialog />
     </MainLayout>
   )
 }

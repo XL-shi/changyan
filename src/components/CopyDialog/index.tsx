@@ -4,7 +4,7 @@ import { writeText } from '@tauri-apps/plugin-clipboard-manager'
 import { Info, X } from 'lucide-react'
 import { useState } from 'react'
 
-export function CopyDialog() {
+export function CopyDialog({ noOverlay = false }: { noOverlay?: boolean }) {
   const { t } = useTranslation()
   const copyReadyText = useAppStore((s) => s.copyReadyText)
   const setCopyReadyText = useAppStore((s) => s.setCopyReadyText)
@@ -31,7 +31,13 @@ export function CopyDialog() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div
+      className={
+        noOverlay
+          ? 'flex items-center justify-center w-full h-full'
+          : 'fixed inset-0 z-50 flex items-center justify-center bg-black/40'
+      }
+    >
       <div className="bg-bg-elevated text-text-primary rounded-2xl shadow-2xl w-[340px] p-5 relative border border-border">
         <button
           onClick={() => setCopyReadyText(null)}

@@ -21,13 +21,13 @@ jobs:
         include:
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
-            args: ''
+            args: '--bundles nsis'
           - platform: macos-latest
             target: aarch64-apple-darwin
-            args: '--target aarch64-apple-darwin'
+            args: '--target aarch64-apple-darwin --bundles dmg'
           - platform: macos-latest
             target: x86_64-apple-darwin
-            args: '--target x86_64-apple-darwin'
+            args: '--target x86_64-apple-darwin --bundles dmg'
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -138,22 +138,3 @@ jobs:
             echo "⚠️  No .app bundle found, skipping signature"
           fi
 
-      - name: Build PKG installer (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          APP_PATH=$(find src-tauri/target/*/release/bundle/macos -name "*.app" -maxdepth 1 2>/dev/null | head -n 1)
-          if [ -n "$APP_PATH" ]; then
-            ./scripts/build-pkg.sh "$APP_PATH"
-          fi
-
-      - name: Upload PKG to release (macOS)
-        if: runner.os == 'macOS'
-        env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          PKG_FILE="ChangYan_${VERSION}.pkg"
-          TAG="${{ github.event.inputs.tag || github.ref_name }}"
-          if [ -f "$PKG_FILE" ]; then
-            gh release upload "$TAG" "$PKG_FILE" --clobber
-          fi

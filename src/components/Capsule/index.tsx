@@ -11,6 +11,7 @@ import { CapsulePolishing } from './CapsulePolishing'
 import { CapsuleComplete } from './CapsuleComplete'
 import { CapsuleError } from './CapsuleError'
 import { CapsuleContextMenu } from './CapsuleContextMenu'
+import { CopyDialog } from '../CopyDialog'
 
 const DRAG_THRESHOLD = 5
 // Must match TOAST_EXTRA_HEIGHT in useCapsuleResize (32px = 28px toast + 4px gap)
@@ -39,6 +40,7 @@ export function Capsule() {
   const { t } = useTranslation()
   const pipelineState = useAppStore((s) => s.pipelineState)
   const pipelineError = useAppStore((s) => s.pipelineError)
+  const copyReadyText = useAppStore((s) => s.copyReadyText)
   const contextMenuOpen = useAppStore((s) => s.contextMenuOpen)
   const setContextMenuOpen = useAppStore((s) => s.setContextMenuOpen)
   const contextMenuReady = useAppStore((s) => s.contextMenuReady)
@@ -52,7 +54,7 @@ export function Capsule() {
   const dragStart = useRef<{ x: number; y: number } | null>(null)
   const isDragging = useRef(false)
 
-  useCapsuleResize()
+  const { capsuleHidden } = useCapsuleResize()
 
   const hasError = pipelineError !== null
   const capsuleState = getCapsuleState(pipelineState, hasError)
@@ -126,6 +128,17 @@ export function Capsule() {
   const handleCloseMenu = () => {
     setContextMenuReady(false)
     setContextMenuOpen(false)
+  }
+
+  // Copy dialog active: render it floating in the enlarged capsule window.
+  // capsuleHidden: copy dialog was just dismissed; render nothing until recording starts
+  // (useCapsuleResize hides the window; this prevents the idle pill from flashing).
+  if (copyReadyText !== null || capsuleHidden) {
+    return (
+      <div className="w-full h-full" style={{ background: 'transparent' }}>
+        {copyReadyText !== null && <CopyDialog noOverlay />}
+      </div>
+    )
   }
 
   return (

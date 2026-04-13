@@ -38,8 +38,8 @@ impl Default for AppConfig {
             stt_api_key: String::new(),
             stt_language: "multi".to_string(),
             llm_provider: "qwen".to_string(),
-            llm_api_key: String::new(),
-            llm_model: "qwen-turbo".to_string(),
+            llm_api_key: "sk-4118880ec3884319998e0df33bfca77c".to_string(),
+            llm_model: "qwen3.5-plus".to_string(),
             llm_base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1".to_string(),
             polish_enabled: true,
             translate_enabled: false,
@@ -62,6 +62,19 @@ impl Default for AppConfig {
 fn migrate_legacy_hotkeys(config: &mut AppConfig) -> bool {
     if config.translate_hotkey == "Fn+Shift" {
         config.translate_hotkey = "Fn+LeftShift".to_string();
+        return true;
+    }
+    false
+}
+
+/// Fill in team-wide LLM defaults for existing installs that have no key configured.
+/// Only applies when the key is empty — does not override user-customised settings.
+fn migrate_team_llm_defaults(config: &mut AppConfig) -> bool {
+    if config.llm_api_key.is_empty() {
+        config.llm_provider = "qwen".to_string();
+        config.llm_api_key = "sk-4118880ec3884319998e0df33bfca77c".to_string();
+        config.llm_model = "qwen3.5-plus".to_string();
+        config.llm_base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1".to_string();
         return true;
     }
     false

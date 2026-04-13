@@ -59,6 +59,103 @@ fn is_accessibility_trusted() -> bool {
     }
 }
 
+/// Check whether a text input field is currently focused in the frontmost application.
+///
+/// macOS: reads AXFocusedUIElement via osascript (requires Accessibility permission).
+///   Returns false on any error — the safe fallback is to show the copy dialog.
+///
+/// Windows: uses GetGUIThreadInfo to check for an active caret (text cursor) in the
+///   foreground thread. A non-zero hwndCaret means a text field has focus. Falls back
+///   to checking the focused HWND class name for classic Edit/RichEdit controls.
+///
+/// Returns false on all errors — always prefer showing the copy dialog when uncertain.
+fn is_input_focused() -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("osascript")
+            .args([
+                "-e",
+                r#"tell application "System Events"
+    set frontApp to first application process whose frontmost is true
+    try
+        set focusedEl to value of attribute "AXFocusedUIElement" of frontApp
+        set role to value of attribute "AXRole" of focusedEl
+        if role is "AXTextField" or role is "AXTextArea" or role is "AXComboBox" or role is "AXSearchField" then
+            return "true"
+        end if
+    on error
+        return "false"
+    end try
+    return "false"
+end tell"#,
+            ])
+            .output()
+            .ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .map(|s| s.trim() == "true")
+            .unwrap_or(false)
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{
+            GetClassNameW, GetForegroundWindow, GetGUIThreadInfo, GetWindowThreadProcessId,
+            GUITHREADINFO,
+        };
+        use windows_sys::Win32::Foundation::RECT;
+
+        unsafe {
+            let hwnd = GetForegroundWindow();
+            if hwnd == 0 {
+                return false;
+            }
+            let thread_id = GetWindowThreadProcessId(hwnd, std::ptr::null_mut());
+            if thread_id == 0 {
+                return false;
+            }
+            let mut gti = GUITHREADINFO {
+                cbSize: std::mem::size_of::<GUITHREADINFO>() as u32,
+                flags: 0,
+                hwndActive: 0,
+                hwndFocus: 0,
+                hwndCapture: 0,
+                hwndMenuOwner: 0,
+                hwndMoveSize: 0,
+                hwndCaret: 0,
+                rcCaret: RECT {
+                    left: 0,
+                    top: 0,
+                    right: 0,
+                    bottom: 0,
+                },
+            };
+            if GetGUIThreadInfo(thread_id, &mut gti) == 0 {
+                return false;
+            }
+            // An active text caret means a text input has keyboard focus.
+            if gti.hwndCaret != 0 {
+                return true;
+            }
+            // Fallback: check focused HWND class name for classic Win32 text controls.
+            if gti.hwndFocus == 0 {
+                return false;
+            }
+            let mut buf = [0u16; 256];
+            let len = GetClassNameW(gti.hwndFocus, buf.as_mut_ptr(), buf.len() as i32);
+            if len <= 0 {
+                return false;
+            }
+            let class = String::from_utf16_lossy(&buf[..len as usize]).to_lowercase();
+            class.contains("edit") || class.contains("richedit") || class.contains("scintilla")
+        }
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        false
+    }
+}
+
 /// Delay before capturing selected text to ensure hotkey modifiers are released.
 const SELECTED_TEXT_CAPTURE_DELAY_MS: u64 = 60;
 /// Delay after simulating Ctrl+C to let the clipboard update.
@@ -167,9 +264,9 @@ impl PipelineHandle {
             // in fullscreen spaces the moment recording begins.
             crate::raise_capsule_window(&self.app_handle);
         } else if new_state == PipelineState::Idle {
-            if let Some(capsule) = self.app_handle.get_webview_window("capsule") {
-                let _ = capsule.hide();
-            }
+            // Capsule hide is managed by the frontend (useCapsuleResize win.hide()).
+            // Moving the hide here caused a race: the Rust hide ran after the frontend's
+            // win.show() for the copy dialog, leaving the copy dialog invisible.
         }
 
         // Update tray tooltip + menu to reflect pipeline state
@@ -865,6 +962,29 @@ impl PipelineHandle {
             let _ = self
                 .app_handle
                 .emit("pipeline:copy_ready", text.to_string());
+            // Raise capsule NOW while state is still Outputting — the idle guard in
+            // raise_capsule_window blocks calls made after set_state(Idle).
+            crate::raise_capsule_window(&self.app_handle);
+            return Ok(());
+        }
+
+        // When no text input is focused, copy to clipboard only instead of typing/pasting.
+        let input_focused = tokio::task::spawn_blocking(is_input_focused).await.unwrap_or(true);
+        if !input_focused {
+            let text_copy = text.to_string();
+            let _ = tokio::task::spawn_blocking(move || {
+                arboard::Clipboard::new()
+                    .and_then(|mut cb| cb.set_text(text_copy))
+                    .ok()
+            })
+            .await;
+            let _ = self.app_handle.emit("pipeline:target_app", app_name);
+            let _ = self
+                .app_handle
+                .emit("pipeline:copy_ready", text.to_string());
+            // Raise capsule NOW while state is still Outputting — the idle guard in
+            // raise_capsule_window blocks calls made after set_state(Idle).
+            crate::raise_capsule_window(&self.app_handle);
             return Ok(());
         }
 
