@@ -252,7 +252,7 @@ export function SttPane() {
               <XCircle size={13} /> {t('settings.connectionFailed')}
             </p>
           )}
-          <p className="text-[11px] text-text-tertiary mt-1.5">{t('settings.storedLocally')}</p>
+          {/* <p className="text-[11px] text-text-tertiary mt-1.5">{t('settings.storedLocally')}</p> */}
         </FormField>
       )}
 

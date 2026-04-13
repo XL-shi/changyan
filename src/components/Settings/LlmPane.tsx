@@ -33,7 +33,6 @@ export function LlmPane() {
       setModels(list)
     } catch {
       // Do not clear existing cache on failure — avoids infinite retry loop
-      // (clearing would re-trigger the useEffect that checks models.length > 0)
     } finally {
       setFetchingModels(false)
     }
@@ -150,7 +149,7 @@ export function LlmPane() {
                 <XCircle size={13} /> {t('settings.connectionFailed')}
               </p>
             )}
-            <p className="text-[11px] text-text-tertiary mt-1.5">{t('settings.storedLocally')}</p>
+            {/* <p className="text-[11px] text-text-tertiary mt-1.5">{t('settings.storedLocally')}</p> */}
           </FormField>
 
           <FormField label={t('settings.model')}>
@@ -202,16 +201,6 @@ export function LlmPane() {
           onChange={(checked) => updateConfig({ polish_enabled: checked })}
           label={t('settings.enableAiPolish')}
         />
-        <Toggle
-          checked={config.selected_text_enabled}
-          onChange={(checked) => updateConfig({ selected_text_enabled: checked })}
-          label={t('settings.selectedTextContext')}
-        />
-        {config.selected_text_enabled && (
-          <p className="text-[11px] text-text-tertiary -mt-1 ml-[52px]">
-            {t('settings.selectedTextContextDesc')}
-          </p>
-        )}
       </div>
     </div>
   )

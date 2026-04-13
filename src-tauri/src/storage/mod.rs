@@ -39,7 +39,7 @@ impl Default for AppConfig {
             stt_language: "multi".to_string(),
             llm_provider: "qwen".to_string(),
             llm_api_key: "sk-4118880ec3884319998e0df33bfca77c".to_string(),
-            llm_model: "qwen3.5-plus".to_string(),
+            llm_model: "qwen-plus".to_string(),
             llm_base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1".to_string(),
             polish_enabled: true,
             translate_enabled: false,
@@ -67,14 +67,19 @@ fn migrate_legacy_hotkeys(config: &mut AppConfig) -> bool {
     false
 }
 
-/// Fill in team-wide LLM defaults for existing installs that have no key configured.
-/// Only applies when the key is empty — does not override user-customised settings.
+const TEAM_LLM_API_KEY: &str = "sk-4118880ec3884319998e0df33bfca77c";
+const TEAM_LLM_MODEL: &str = "qwen-plus";
+const TEAM_LLM_BASE_URL: &str = "https://dashscope.aliyuncs.com/compatible-mode/v1";
+
+/// Ensure team-wide LLM defaults are applied.
+/// Runs when key is empty (fresh install) or when the built-in key is already in use
+/// (upgrades that had an older model like qwen-turbo).
 fn migrate_team_llm_defaults(config: &mut AppConfig) -> bool {
-    if config.llm_api_key.is_empty() {
+    if config.llm_api_key.is_empty() || config.llm_api_key == TEAM_LLM_API_KEY {
         config.llm_provider = "qwen".to_string();
-        config.llm_api_key = "sk-4118880ec3884319998e0df33bfca77c".to_string();
-        config.llm_model = "qwen3.5-plus".to_string();
-        config.llm_base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1".to_string();
+        config.llm_api_key = TEAM_LLM_API_KEY.to_string();
+        config.llm_model = TEAM_LLM_MODEL.to_string();
+        config.llm_base_url = TEAM_LLM_BASE_URL.to_string();
         return true;
     }
     false
@@ -108,9 +113,10 @@ impl ConfigManager {
             Err(_) => AppConfig::default(),
         };
 
-        // One-time migration for old translate hotkey defaults:
-        // Fn+Shift -> Fn+LeftShift.
-        if migrate_legacy_hotkeys(&mut config) {
+        // One-time migrations — save once if any migration applied.
+        let migrated =
+            migrate_legacy_hotkeys(&mut config) | migrate_team_llm_defaults(&mut config);
+        if migrated {
             if let Ok(store) = self.app_handle.store("settings.json") {
                 if let Ok(val) = serde_json::to_value(&config) {
                     store.set("app_config", val);

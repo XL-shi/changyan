@@ -79,10 +79,10 @@ fn is_input_focused() -> bool {
     set frontApp to first application process whose frontmost is true
     try
         set focusedEl to value of attribute "AXFocusedUIElement" of frontApp
-        set role to value of attribute "AXRole" of focusedEl
-        if role is "AXTextField" or role is "AXTextArea" or role is "AXComboBox" or role is "AXSearchField" then
-            return "true"
+        if focusedEl is missing value then
+            return "false"
         end if
+        return "true"
     on error
         return "false"
     end try
@@ -210,6 +210,9 @@ pub struct PipelineHandle {
     preloaded_app_ctx: Arc<Mutex<Option<app_detector::AppContext>>>,
     preloaded_dictionary: Arc<Mutex<Option<Vec<String>>>>,
     preloaded_selected_text: Arc<Mutex<Option<String>>>,
+    /// Whether a text input was focused in the target app at recording-start time.
+    /// Captured before the Capsule window is raised so osascript sees the correct app.
+    preloaded_input_focused: Arc<std::sync::atomic::AtomicBool>,
     recording_start: Arc<Mutex<Option<std::time::Instant>>>,
     shared_client: reqwest::Client,
     /// Set to true when the translate hotkey triggers recording; cleared after run_once reads it.
@@ -232,6 +235,7 @@ impl PipelineHandle {
             preloaded_app_ctx: Arc::new(Mutex::new(None)),
             preloaded_dictionary: Arc::new(Mutex::new(None)),
             preloaded_selected_text: Arc::new(Mutex::new(None)),
+            preloaded_input_focused: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             recording_start: Arc::new(Mutex::new(None)),
             shared_client: reqwest::Client::new(),
             translate_session: Arc::new(std::sync::atomic::AtomicBool::new(false)),
@@ -394,6 +398,10 @@ impl PipelineHandle {
             .preloaded_app_ctx
             .lock()
             .unwrap_or_else(|e| e.into_inner()) = Some(app_detector::detect_current_app());
+        // Capture input-focus state NOW, before raise_capsule_window steals the frontmost-app slot.
+        let input_focused_now = tokio::task::spawn_blocking(is_input_focused).await.unwrap_or(true);
+        self.preloaded_input_focused
+            .store(input_focused_now, Ordering::SeqCst);
         let dict_words = self
             .app_handle
             .state::<storage::DictionaryStore>()
@@ -968,8 +976,9 @@ impl PipelineHandle {
             return Ok(());
         }
 
-        // When no text input is focused, copy to clipboard only instead of typing/pasting.
-        let input_focused = tokio::task::spawn_blocking(is_input_focused).await.unwrap_or(true);
+        // Use the input-focus state captured at recording-start time (before the Capsule window
+        // was raised to the front). Checking it here would query the wrong frontmost app.
+        let input_focused = self.preloaded_input_focused.load(Ordering::SeqCst);
         if !input_focused {
             let text_copy = text.to_string();
             let _ = tokio::task::spawn_blocking(move || {

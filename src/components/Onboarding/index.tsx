@@ -14,47 +14,28 @@ import {
 import { OnboardingLayout } from './OnboardingLayout'
 import { WelcomeStep } from './WelcomeStep'
 // import { AccountStep } from './AccountStep'
-// ModeSelectStep removed — defaults to BYOK (API key setup)
-import { LlmSetupStep } from './LlmSetupStep'
 import { DoneStep } from './DoneStep'
 import { slideRight } from '../../lib/animations'
 
-const TOTAL_STEPS = 3
+const TOTAL_STEPS = 2
 
 export function Onboarding() {
   const { t } = useTranslation()
   const step = useAppStore((s) => s.onboardingStep)
   const setStep = useAppStore((s) => s.setOnboardingStep)
   const setOnboardingCompleted = useAppStore((s) => s.setOnboardingCompleted)
-  const llmTestStatus = useAppStore((s) => s.llmTestStatus)
   const updateConfig = useAppStore((s) => s.updateConfig)
   const [isFinalizing, setIsFinalizing] = useState(false)
   const [modelDownloadProgress, setModelDownloadProgress] = useState(0)
   const [modelDownloadError, setModelDownloadError] = useState<string | null>(null)
 
-  // Steps: 0: Welcome, 1: LlmSetup, 2: Done
-  const canNext = (() => {
-    switch (step) {
-      case 0:
-        return true // Welcome — always
-      case 1:
-        return llmTestStatus === 'success' // LLM must pass
-      case 2:
-        return true // Done
-      default:
-        return false
-    }
-  })()
+  // Steps: 0: Welcome, 1: Done
+  const canNext = true
 
   const titles = [
     {
       title: t('onboarding.welcomeTitle'),
       subtitle: t('onboarding.welcomeSubtitle'),
-    },
-    // STT step removed — STT is built-in local SenseVoice Small
-    {
-      title: t('onboarding.aiPolish'),
-      subtitle: t('onboarding.aiPolishDesc'),
     },
     { title: t('onboarding.setupComplete'), subtitle: undefined },
   ]
@@ -108,7 +89,6 @@ export function Onboarding() {
 
   const handleNext = async () => {
     if (step < TOTAL_STEPS - 1) {
-      // Entering LlmSetup: set provider to BYOK defaults
       if (step === 0) {
         updateConfig({ stt_provider: 'sensevoice-local' })
       }
@@ -170,9 +150,7 @@ export function Onboarding() {
           transition={{ duration: 0.2 }}
         >
           {step === 0 && <WelcomeStep />}
-          {/* STT step removed — STT is built-in local SenseVoice Small */}
-          {step === 1 && <LlmSetupStep />}
-          {step === 2 && (
+          {step === 1 && (
             <DoneStep
               isFinalizing={isFinalizing}
               modelDownloadProgress={modelDownloadProgress}
