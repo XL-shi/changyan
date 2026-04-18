@@ -854,7 +854,10 @@ impl PipelineHandle {
         // garbled output that differed from what History recorded.
 
         // Pre-build LLM provider and Enigo while STT is still processing
-        let pre_llm = if config.polish_enabled
+        // Translate sessions always need the LLM even when polish is disabled.
+        let is_translate_session = self.translate_session.load(Ordering::Relaxed);
+        tracing::info!("[Pipeline] stop: polish_enabled={} is_translate={} llm_key_len={}", config.polish_enabled, is_translate_session, config.llm_api_key.len());
+        let pre_llm = if (config.polish_enabled || is_translate_session)
             && (!config.llm_api_key.is_empty() || config.llm_provider == "cloud")
         {
             let llm_api_key = if config.llm_provider == "cloud" {

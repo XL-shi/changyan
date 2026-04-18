@@ -130,13 +130,17 @@ impl ConfigManager {
     }
 
     pub async fn save(&self, config: &AppConfig) -> Result<()> {
+        let mut config = config.clone();
+        // Apply team defaults so the cache never holds an empty key.
+        migrate_team_llm_defaults(&mut config);
+
         *self.cache.lock().unwrap_or_else(|e| e.into_inner()) = Some(config.clone());
 
         let store = self
             .app_handle
             .store("settings.json")
             .map_err(|e| anyhow::anyhow!("Failed to open store: {}", e))?;
-        let val = serde_json::to_value(config)?;
+        let val = serde_json::to_value(&config)?;
         store.set("app_config", val);
         store.save().map_err(|e| anyhow::anyhow!("{}", e))?;
 

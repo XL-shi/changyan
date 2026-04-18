@@ -1303,15 +1303,18 @@ fn register_fn_key_tap(
         let app_handle = app_handle.clone();
         move || {
             for is_translate in rx {
+                tracing::info!("[FnKey] tap signal: is_translate={}", is_translate);
                 let h = app_handle.clone();
                 tauri::async_runtime::spawn(async move {
                     let pipeline = h.state::<pipeline::PipelineHandle>();
                     match pipeline.current_state() {
                         pipeline::PipelineState::Idle => {
+                            // Always write translate_session to clear any stale flag from a
+                            // previously cancelled translate recording.
+                            pipeline
+                                .translate_session
+                                .store(is_translate, std::sync::atomic::Ordering::Relaxed);
                             if is_translate {
-                                pipeline
-                                    .translate_session
-                                    .store(true, std::sync::atomic::Ordering::Relaxed);
                                 let _ = h.emit("pipeline:translate_session", ());
                             }
                             if let Err(e) = pipeline.start().await {
@@ -1846,10 +1849,10 @@ fn build_shortcut_handler(
             let pipeline = handle.state::<pipeline::PipelineHandle>();
             match pipeline.current_state() {
                 pipeline::PipelineState::Idle => {
+                    pipeline
+                        .translate_session
+                        .store(is_translate, std::sync::atomic::Ordering::Relaxed);
                     if is_translate {
-                        pipeline
-                            .translate_session
-                            .store(true, std::sync::atomic::Ordering::Relaxed);
                         // Notify frontend that this recording is a translate session
                         let _ = handle.emit("pipeline:translate_session", ());
                     }
