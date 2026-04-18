@@ -61,39 +61,156 @@ fn is_accessibility_trusted() -> bool {
 
 /// Check whether a text input field is currently focused in the frontmost application.
 ///
-/// macOS: reads AXFocusedUIElement via osascript (requires Accessibility permission).
-///   Returns false on any error — the safe fallback is to show the copy dialog.
-///
-/// Windows: uses GetGUIThreadInfo to check for an active caret (text cursor) in the
-///   foreground thread. A non-zero hwndCaret means a text field has focus. Falls back
-///   to checking the focused HWND class name for classic Edit/RichEdit controls.
-///
-/// Returns false on all errors — always prefer showing the copy dialog when uncertain.
+/// macOS strategy:
+///   1. NSWorkspace: if no non-ChangYan app is frontmost → false (show clipboard popup).
+///   2. AXUIElementCreateApplication(front_pid): query focused element of that specific app.
+///      Per-app query works for Electron apps (VS Code etc.) where system-wide query fails.
+///   3. If AX returns a focused element, check its role for text input types.
+///   4. If AX fails for any reason (sandboxed app, no AX role exposed), default to true
+///      (paste directly) — a non-ChangYan app IS frontmost, so paste is the right call.
 fn is_input_focused() -> bool {
     #[cfg(target_os = "macos")]
     {
-        std::process::Command::new("osascript")
-            .args([
-                "-e",
-                r#"tell application "System Events"
-    set frontApp to first application process whose frontmost is true
-    try
-        set focusedEl to value of attribute "AXFocusedUIElement" of frontApp
-        if focusedEl is missing value then
-            return "false"
-        end if
-        return "true"
-    on error
-        return "false"
-    end try
-    return "false"
-end tell"#,
-            ])
-            .output()
-            .ok()
-            .and_then(|o| String::from_utf8(o.stdout).ok())
-            .map(|s| s.trim() == "true")
-            .unwrap_or(false)
+        use std::ffi::CStr;
+        use std::os::raw::{c_char, c_long, c_void};
+
+        type AXUIElementRef = *const c_void;
+        type CFTypeRef = *const c_void;
+
+        #[allow(non_upper_case_globals)]
+        const kCFStringEncodingUTF8: u32 = 0x08000100;
+        // Correct AX error constants (from AXError.h)
+        const K_AX_ERROR_API_DISABLED: i32 = -25211;
+        const K_AX_ERROR_NO_VALUE: i32 = -25212;
+
+        #[link(name = "ApplicationServices", kind = "framework")]
+        extern "C" {
+            fn AXUIElementCreateApplication(pid: i32) -> AXUIElementRef;
+            fn AXUIElementCopyAttributeValue(
+                element: AXUIElementRef,
+                attribute: *const c_void,
+                value: *mut CFTypeRef,
+            ) -> i32;
+            fn CFRelease(cf: CFTypeRef);
+            fn CFStringCreateWithCString(
+                alloc: *const c_void,
+                c_str: *const c_char,
+                encoding: u32,
+            ) -> *const c_void;
+            fn CFStringGetCString(
+                the_string: *const c_void,
+                buffer: *mut c_char,
+                buffer_size: c_long,
+                encoding: u32,
+            ) -> bool;
+        }
+
+        // Step 1: NSWorkspace — is a non-ChangYan app currently frontmost?
+        use objc2_app_kit::NSWorkspace;
+        let workspace = NSWorkspace::sharedWorkspace();
+        let front_app = workspace.frontmostApplication();
+        let front_pid = match front_app {
+            None => {
+                tracing::debug!("[Focus] no frontmost app");
+                return false;
+            }
+            Some(app) => app.processIdentifier(),
+        };
+
+        if front_pid == std::process::id() as i32 {
+            tracing::debug!("[Focus] ChangYan is frontmost → clipboard popup");
+            return false;
+        }
+
+        // Step 2: Query focused element from the frontmost app directly.
+        // Per-app query is more reliable than system-wide for Electron/sandboxed apps.
+        unsafe {
+            let app_el = AXUIElementCreateApplication(front_pid);
+            if app_el.is_null() {
+                tracing::info!("[Focus] non-ChangYan frontmost (pid={}) → paste", front_pid);
+                return true;
+            }
+
+            let focused_attr = CFStringCreateWithCString(
+                std::ptr::null(),
+                b"AXFocusedUIElement\0".as_ptr() as *const c_char,
+                kCFStringEncodingUTF8,
+            );
+            let mut focused: CFTypeRef = std::ptr::null();
+            let err = AXUIElementCopyAttributeValue(app_el, focused_attr, &mut focused);
+            CFRelease(focused_attr);
+            CFRelease(app_el);
+
+            if err == K_AX_ERROR_API_DISABLED {
+                tracing::info!("[Focus] AX disabled for pid={} → paste (non-ChangYan frontmost)", front_pid);
+                return true;
+            }
+
+            if err == K_AX_ERROR_NO_VALUE || focused.is_null() {
+                // Electron apps (VS Code, Notion, etc.) don't expose AXFocusedUIElement
+                // even when a text field IS focused. Can't distinguish from "Finder, no text field".
+                // Default to paste — non-ChangYan app is frontmost, which is the primary signal.
+                // In the worst case (Finder, no text field), Cmd+V is silently ignored by macOS.
+                tracing::info!("[Focus] AX no focused element in pid={} (Electron?) → paste", front_pid);
+                return true;
+            }
+
+            if err != 0 {
+                // Other AX error (e.g. app doesn't expose AX at all) → assume paste is right.
+                tracing::info!("[Focus] AX err={} for pid={} → paste", err, front_pid);
+                return true;
+            }
+
+            // Step 3: Check the focused element's role.
+            let role_attr = CFStringCreateWithCString(
+                std::ptr::null(),
+                b"AXRole\0".as_ptr() as *const c_char,
+                kCFStringEncodingUTF8,
+            );
+            let mut role_ref: CFTypeRef = std::ptr::null();
+            let role_err = AXUIElementCopyAttributeValue(
+                focused as AXUIElementRef,
+                role_attr,
+                &mut role_ref,
+            );
+            CFRelease(role_attr);
+            CFRelease(focused);
+
+            if role_err != 0 || role_ref.is_null() {
+                // Can't read role but element IS focused → paste.
+                tracing::info!("[Focus] no AXRole (err={}) but focused → paste", role_err);
+                return true;
+            }
+
+            let mut buf = [0u8; 128];
+            let ok = CFStringGetCString(
+                role_ref,
+                buf.as_mut_ptr() as *mut c_char,
+                128,
+                kCFStringEncodingUTF8,
+            );
+            CFRelease(role_ref);
+
+            if !ok {
+                return true;
+            }
+
+            // SAFETY: CFStringGetCString null-terminates the buffer on success.
+            let role_str = CStr::from_ptr(buf.as_ptr() as *const c_char)
+                .to_str()
+                .unwrap_or("");
+
+            let result = matches!(
+                role_str,
+                "AXTextField"
+                    | "AXTextArea"
+                    | "AXComboBox"
+                    | "AXSearchField"
+                    | "AXWebArea"
+            );
+            tracing::info!("[Focus] pid={} role='{}' → {}", front_pid, role_str, if result { "paste" } else { "clipboard popup" });
+            result
+        }
     }
 
     #[cfg(target_os = "windows")]
@@ -368,6 +485,15 @@ impl PipelineHandle {
         {
             return Ok(());
         }
+        // Capture focus BEFORE emitting Recording state.
+        // Emitting triggers the frontend to call bring_capsule_to_front which raises the capsule
+        // window and makes ChangYan the frontmost app. Any focus check after that would see
+        // the capsule (no text input) and always return false.
+        let input_focused_now = tokio::task::spawn_blocking(is_input_focused).await.unwrap_or(true);
+        self.preloaded_input_focused
+            .store(input_focused_now, Ordering::SeqCst);
+        tracing::info!("[Focus] preloaded input_focused={}", input_focused_now);
+
         let _ = self
             .app_handle
             .emit("pipeline:state", PipelineState::Recording);
@@ -398,10 +524,6 @@ impl PipelineHandle {
             .preloaded_app_ctx
             .lock()
             .unwrap_or_else(|e| e.into_inner()) = Some(app_detector::detect_current_app());
-        // Capture input-focus state NOW, before raise_capsule_window steals the frontmost-app slot.
-        let input_focused_now = tokio::task::spawn_blocking(is_input_focused).await.unwrap_or(true);
-        self.preloaded_input_focused
-            .store(input_focused_now, Ordering::SeqCst);
         let dict_words = self
             .app_handle
             .state::<storage::DictionaryStore>()
