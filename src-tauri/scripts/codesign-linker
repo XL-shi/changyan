@@ -21,8 +21,8 @@ for arg in "$@"; do
 done
 
 # Only sign the main app binary, not intermediate artifacts
-if [[ -n "$OUTPUT" && "$(basename "$OUTPUT")" = "opentypeless" ]]; then
-  codesign --force --sign "OpenTypeless Dev" "$OUTPUT" >/dev/null 2>&1 && \
+if [[ -n "$OUTPUT" && "$(basename "$OUTPUT")" = "changyan" ]]; then
+  codesign --force --sign "ChangYan Dev" "$OUTPUT" >/dev/null 2>&1 && \
     echo "codesign: ✓ signed $(basename "$OUTPUT")" >&2 || true
 fi
 

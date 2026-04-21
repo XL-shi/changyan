@@ -20,7 +20,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 /// Default cloud API base URL. Override with the `API_BASE_URL` environment variable.
-pub const DEFAULT_API_BASE_URL: &str = "https://www.opentypeless.com";
+pub const DEFAULT_API_BASE_URL: &str = "https://www.changyan.app";
 
 /// Read the cloud API base URL from the environment, falling back to the compiled default.
 pub fn api_base_url() -> String {

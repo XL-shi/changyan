@@ -101,14 +101,14 @@ App config stored via `tauri-plugin-store` (JSON). Key fields:
 
 ## Database
 
-SQLite (`opentypeless.db`) via rusqlite — migrations in `src-tauri/migrations/`:
+SQLite (`changyan.db`) via rusqlite — migrations in `src-tauri/migrations/`:
 
 - `history` table — transcription records with timestamps, raw/polished text, app context
 - `dictionary` table — user-defined terms for transcription accuracy
 
 ## Environment Variables
 
-- `VITE_API_BASE_URL` — Cloud API base (default: `https://www.opentypeless.com`)
+- `VITE_API_BASE_URL` — Cloud API base (default: `https://www.changyan.app`)
 - `API_BASE_URL` — Rust-side cloud API base
 
 ## Testing

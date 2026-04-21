@@ -1,4 +1,4 @@
-## 🎉 OpenTypeless v{VERSION}
+## 🎉 ChangYan v{VERSION}
 
 ### 📥 下载安装
 
@@ -43,7 +43,7 @@ xattr -cr /Applications/ChangYan.app
 
 ### 📝 完整更新日志
 
-[查看完整更新日志](https://github.com/OpenTypeless/ChangYan/compare/v{PREV_VERSION}...v{VERSION})
+[查看完整更新日志](https://github.com/XL-shi/changyan/compare/v{PREV_VERSION}...v{VERSION})
 
 ---
 
@@ -56,4 +56,4 @@ xattr -cr /Applications/ChangYan.app
 - ⚠️ macOS Gatekeeper 需要手动授权首次打开
 - ℹ️ 若需要"开箱即用"的体验，需要 Apple Developer ID（$99/年）
 
-如有问题，请查看 [安装指南](https://github.com/OpenTypeless/ChangYan#installation) 或提交 [Issue](https://github.com/OpenTypeless/ChangYan/issues)。
+如有问题，请查看 [安装指南](https://github.com/XL-shi/changyan#installation) 或提交 [Issue](https://github.com/XL-shi/changyan/issues)。

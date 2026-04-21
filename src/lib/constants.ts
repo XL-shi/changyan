@@ -1,11 +1,11 @@
 // App metadata
 export const APP_NAME = 'ChangYan'
 export const APP_VERSION = 'v0.1.0'
-export const APP_REPO_URL = 'https://github.com/tover0314-w/opentypeless'
-export const APP_LICENSE_URL = 'https://github.com/tover0314-w/opentypeless/blob/main/LICENSE'
-// Cloud API base URL — defaults to www.opentypeless.com but can be overridden via VITE_API_BASE_URL env var.
+export const APP_REPO_URL = 'https://github.com/XL-shi/changyan'
+export const APP_LICENSE_URL = 'https://github.com/XL-shi/changyan/blob/main/LICENSE'
+// Cloud API base URL — defaults to changyan.app but can be overridden via VITE_API_BASE_URL env var.
 // All core features (BYOK mode) work without any cloud connection.
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://www.opentypeless.com'
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://www.changyan.app'
 
 export const FREE_PLAN = {
   sttMinutes: 15,

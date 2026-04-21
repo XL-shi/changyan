@@ -1,5 +1,5 @@
 name: Feature Request
-description: Suggest an idea for OpenTypeless
+description: Suggest an idea for ChangYan
 labels: ["enhancement"]
 body:
   - type: textarea

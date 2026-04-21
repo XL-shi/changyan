@@ -5,7 +5,7 @@
 BINARY="$1"
 shift
 
-CERT="OpenTypeless Dev"
+CERT="ChangYan Dev"
 BUNDLE_ID="com.changyan.app"
 APP_BUNDLE="$(cd "$(dirname "$BINARY")" && pwd)/ChangYan.app"
 APP_BINARY="$APP_BUNDLE/Contents/MacOS/changyan"
