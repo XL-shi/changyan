@@ -16,6 +16,7 @@ import { HomePage } from './components/HomePage'
 import { UpgradePage } from './components/UpgradePage'
 // import { AccountPage } from './components/AccountPage'
 import { ToastContainer } from './components/Toast'
+import { UpdateChecker } from './components/UpdateChecker'
 
 function CapsuleApp() {
   useTauriEvents()
@@ -142,6 +143,7 @@ function MainApp() {
       {/* Account page temporarily hidden */}
       {/* {route === 'account' && <AccountPage />} */}
       <ToastContainer />
+      <UpdateChecker />
     </MainLayout>
   )
 }

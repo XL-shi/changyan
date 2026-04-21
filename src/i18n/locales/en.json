@@ -4,7 +4,14 @@
     "tagline": "AI Voice Input",
     "loading": "Loading...",
     "failedToLoad": "Failed to load application data.",
-    "retry": "Retry"
+    "retry": "Retry",
+    "update": {
+      "available": "New version available",
+      "ready": "{{version}} is ready to install",
+      "updateNow": "Update now",
+      "installing": "Installing…",
+      "later": "Later"
+    }
   },
   "nav": {
     "home": "Home",
