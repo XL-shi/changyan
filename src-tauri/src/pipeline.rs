@@ -1,10 +1,45 @@
 use anyhow::Result;
 use enigo::{Direction, Enigo, Key, Keyboard, Settings as EnigoSettings};
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::atomic::{AtomicI32, AtomicU64, AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::Emitter;
 use tauri::Manager;
 use tokio::sync::Notify;
+
+// ─── Interaction activity heuristic ───
+// Tracks recent keyboard typing and mouse clicks observed by the CGEventTap in lib.rs.
+// Used as a last-resort focus signal for apps that are opaque to AX queries.
+
+/// PID of the frontmost app at the time of the last observed text key press.
+pub(crate) static LAST_TEXT_KEY_APP_PID: AtomicI32 = AtomicI32::new(0);
+/// Milliseconds since UNIX epoch of the last observed text key press.
+pub(crate) static LAST_TEXT_KEY_MS: AtomicU64 = AtomicU64::new(0);
+/// PID of the frontmost app at the time of the last observed mouse click.
+pub(crate) static LAST_CLICK_APP_PID: AtomicI32 = AtomicI32::new(0);
+/// Milliseconds since UNIX epoch of the last observed mouse click.
+pub(crate) static LAST_CLICK_MS: AtomicU64 = AtomicU64::new(0);
+
+/// Called from the CGEventTap callback whenever a printable key is pressed.
+pub(crate) fn record_text_key_activity(app_pid: i32) {
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+    LAST_TEXT_KEY_APP_PID.store(app_pid, Ordering::Relaxed);
+    LAST_TEXT_KEY_MS.store(now_ms, Ordering::Relaxed);
+}
+
+/// Called from the CGEventTap callback whenever a mouse button is pressed.
+/// A click is a weaker signal than typing — it suggests the user may have
+/// activated a text input but we can't be certain without AX.
+pub(crate) fn record_click_activity(app_pid: i32) {
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+    LAST_CLICK_APP_PID.store(app_pid, Ordering::Relaxed);
+    LAST_CLICK_MS.store(now_ms, Ordering::Relaxed);
+}
 
 use crate::app_detector;
 use crate::audio::{AudioCaptureHandle, AudioConfig};
@@ -86,6 +121,8 @@ fn is_input_focused() -> bool {
         #[link(name = "ApplicationServices", kind = "framework")]
         extern "C" {
             fn AXUIElementCreateApplication(pid: i32) -> AXUIElementRef;
+            fn AXUIElementCreateSystemWide() -> AXUIElementRef;
+            fn AXUIElementGetPid(element: AXUIElementRef, pid: *mut i32) -> i32;
             fn AXUIElementCopyAttributeValue(
                 element: AXUIElementRef,
                 attribute: *const c_void,
@@ -139,21 +176,252 @@ fn is_input_focused() -> bool {
             let mut focused: CFTypeRef = std::ptr::null();
             let err = AXUIElementCopyAttributeValue(app_el, focused_attr, &mut focused);
             CFRelease(focused_attr);
-            CFRelease(app_el);
+            // app_el kept alive — needed for the window-level fallback below.
 
             if err == K_AX_ERROR_API_DISABLED {
+                CFRelease(app_el);
                 tracing::info!("[Focus] AX disabled for pid={} → paste (non-ChangYan frontmost)", front_pid);
                 return true;
             }
 
             if err == K_AX_ERROR_NO_VALUE || focused.is_null() {
-                // Electron apps (VS Code, Notion, etc.) don't expose AXFocusedUIElement
-                // even when a text field IS focused. Can't distinguish from "Finder, no text field".
-                // Default to paste — non-ChangYan app is frontmost, which is the primary signal.
-                // In the worst case (Finder, no text field), Cmd+V is silently ignored by macOS.
-                tracing::info!("[Focus] AX no focused element in pid={} (Electron?) → paste", front_pid);
-                return true;
+                // App-level AXFocusedUIElement missing. Try three fallbacks in order:
+                // 1. Window-level: app.AXFocusedWindow → window.AXFocusedUIElement
+                // 2. System-wide: AXUIElementCreateSystemWide().AXFocusedUIElement
+                // Both are needed because different Electron variants expose focus at
+                // different levels (or not at all).
+
+                // --- Level 2: window-level -----------------------------------------
+                let win_result: Option<bool> = 'win_check: {
+                    let win_attr = CFStringCreateWithCString(
+                        std::ptr::null(),
+                        b"AXFocusedWindow\0".as_ptr() as *const c_char,
+                        kCFStringEncodingUTF8,
+                    );
+                    let mut win: CFTypeRef = std::ptr::null();
+                    let win_err = AXUIElementCopyAttributeValue(app_el, win_attr, &mut win);
+                    CFRelease(win_attr);
+                    if win_err != 0 || win.is_null() {
+                        if !win.is_null() {
+                            CFRelease(win);
+                        }
+                        tracing::info!(
+                            "[Focus] pid={} AXFocusedWindow err={} → trying system-wide",
+                            front_pid, win_err
+                        );
+                        break 'win_check None;
+                    }
+                    let elem_attr = CFStringCreateWithCString(
+                        std::ptr::null(),
+                        b"AXFocusedUIElement\0".as_ptr() as *const c_char,
+                        kCFStringEncodingUTF8,
+                    );
+                    let mut elem: CFTypeRef = std::ptr::null();
+                    let elem_err =
+                        AXUIElementCopyAttributeValue(win as AXUIElementRef, elem_attr, &mut elem);
+                    CFRelease(elem_attr);
+                    CFRelease(win);
+                    if elem_err != 0 || elem.is_null() {
+                        if !elem.is_null() {
+                            CFRelease(elem);
+                        }
+                        tracing::info!(
+                            "[Focus] pid={} window.AXFocusedUIElement err={} → trying system-wide",
+                            front_pid, elem_err
+                        );
+                        break 'win_check None;
+                    }
+                    let role_attr = CFStringCreateWithCString(
+                        std::ptr::null(),
+                        b"AXRole\0".as_ptr() as *const c_char,
+                        kCFStringEncodingUTF8,
+                    );
+                    let mut win_role: CFTypeRef = std::ptr::null();
+                    let role_err = AXUIElementCopyAttributeValue(
+                        elem as AXUIElementRef,
+                        role_attr,
+                        &mut win_role,
+                    );
+                    CFRelease(role_attr);
+                    CFRelease(elem);
+                    if role_err != 0 || win_role.is_null() {
+                        if !win_role.is_null() {
+                            CFRelease(win_role);
+                        }
+                        // Element exists but role unreadable → safe to paste.
+                        break 'win_check Some(true);
+                    }
+                    let mut rbuf = [0u8; 128];
+                    let ok = CFStringGetCString(
+                        win_role,
+                        rbuf.as_mut_ptr() as *mut c_char,
+                        128,
+                        kCFStringEncodingUTF8,
+                    );
+                    CFRelease(win_role);
+                    if !ok {
+                        break 'win_check Some(true);
+                    }
+                    let role =
+                        CStr::from_ptr(rbuf.as_ptr() as *const c_char).to_str().unwrap_or("");
+                    let is_text = matches!(
+                        role,
+                        "AXTextField"
+                            | "AXTextArea"
+                            | "AXComboBox"
+                            | "AXSearchField"
+                            | "AXWebArea"
+                    );
+                    tracing::info!(
+                        "[Focus] pid={} window-level role='{}' → {}",
+                        front_pid,
+                        role,
+                        if is_text { "paste" } else { "clipboard popup" }
+                    );
+                    Some(is_text)
+                };
+                CFRelease(app_el);
+
+                if let Some(v) = win_result {
+                    return v;
+                }
+
+                // --- Level 3: system-wide ------------------------------------------
+                // Some Electron apps expose focus only through the system-wide element.
+                let sys_focused_result: Option<bool> = 'sys_check: {
+                    let sys = AXUIElementCreateSystemWide();
+                    if sys.is_null() {
+                        break 'sys_check None;
+                    }
+                    let sys_attr = CFStringCreateWithCString(
+                        std::ptr::null(),
+                        b"AXFocusedUIElement\0".as_ptr() as *const c_char,
+                        kCFStringEncodingUTF8,
+                    );
+                    let mut sys_elem: CFTypeRef = std::ptr::null();
+                    let sys_err = AXUIElementCopyAttributeValue(sys, sys_attr, &mut sys_elem);
+                    CFRelease(sys_attr);
+                    CFRelease(sys);
+                    if sys_err != 0 || sys_elem.is_null() {
+                        if !sys_elem.is_null() {
+                            CFRelease(sys_elem);
+                        }
+                        tracing::info!(
+                            "[Focus] pid={} system-wide no element (err={})",
+                            front_pid, sys_err
+                        );
+                        break 'sys_check None;
+                    }
+                    // Verify element belongs to our target app.
+                    let mut elem_pid: i32 = -1;
+                    AXUIElementGetPid(sys_elem, &mut elem_pid);
+                    if elem_pid != front_pid {
+                        tracing::info!(
+                            "[Focus] pid={} system-wide element belongs to pid={}",
+                            front_pid, elem_pid
+                        );
+                        CFRelease(sys_elem);
+                        break 'sys_check None;
+                    }
+                    let sys_role_attr = CFStringCreateWithCString(
+                        std::ptr::null(),
+                        b"AXRole\0".as_ptr() as *const c_char,
+                        kCFStringEncodingUTF8,
+                    );
+                    let mut sys_role: CFTypeRef = std::ptr::null();
+                    let sys_role_err = AXUIElementCopyAttributeValue(
+                        sys_elem as AXUIElementRef,
+                        sys_role_attr,
+                        &mut sys_role,
+                    );
+                    CFRelease(sys_role_attr);
+                    CFRelease(sys_elem);
+                    if sys_role_err != 0 || sys_role.is_null() {
+                        if !sys_role.is_null() {
+                            CFRelease(sys_role);
+                        }
+                        // Element from our app exists but no role → assume text input.
+                        tracing::info!("[Focus] pid={} system-wide element no role → paste", front_pid);
+                        break 'sys_check Some(true);
+                    }
+                    let mut sbuf = [0u8; 128];
+                    let ok = CFStringGetCString(
+                        sys_role,
+                        sbuf.as_mut_ptr() as *mut c_char,
+                        128,
+                        kCFStringEncodingUTF8,
+                    );
+                    CFRelease(sys_role);
+                    if !ok {
+                        break 'sys_check Some(true);
+                    }
+                    let sys_role_str =
+                        CStr::from_ptr(sbuf.as_ptr() as *const c_char).to_str().unwrap_or("");
+                    let is_text = matches!(
+                        sys_role_str,
+                        "AXTextField"
+                            | "AXTextArea"
+                            | "AXComboBox"
+                            | "AXSearchField"
+                            | "AXWebArea"
+                    );
+                    tracing::info!(
+                        "[Focus] pid={} system-wide role='{}' → {}",
+                        front_pid,
+                        sys_role_str,
+                        if is_text { "paste" } else { "clipboard popup" }
+                    );
+                    Some(is_text)
+                };
+
+                if let Some(v) = sys_focused_result {
+                    return v;
+                }
+
+                // --- Level 4: interaction-activity heuristic -----------------------
+                // AX gave us nothing at any level. Fall back to recent user activity:
+                //   • Typing (30 s): high confidence — text cursor is almost certainly active.
+                //   • Mouse click (120 s): weaker signal — user clicked somewhere in the app,
+                //     likely activating a text input (common workflow: click → voice).
+                let now_ms = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis() as u64;
+
+                let last_key_pid = LAST_TEXT_KEY_APP_PID.load(Ordering::Relaxed);
+                let last_key_ms = LAST_TEXT_KEY_MS.load(Ordering::Relaxed);
+                if last_key_pid == front_pid && last_key_ms > 0 {
+                    let age = now_ms.saturating_sub(last_key_ms);
+                    if age < 30_000 {
+                        tracing::info!(
+                            "[Focus] pid={} keyboard-heuristic: typed {}ms ago → paste",
+                            front_pid, age
+                        );
+                        return true;
+                    }
+                }
+
+                let last_click_pid = LAST_CLICK_APP_PID.load(Ordering::Relaxed);
+                let last_click_ms = LAST_CLICK_MS.load(Ordering::Relaxed);
+                if last_click_pid == front_pid && last_click_ms > 0 {
+                    let age = now_ms.saturating_sub(last_click_ms);
+                    if age < 120_000 {
+                        tracing::info!(
+                            "[Focus] pid={} click-heuristic: clicked {}ms ago → paste",
+                            front_pid, age
+                        );
+                        return true;
+                    }
+                }
+
+                tracing::info!(
+                    "[Focus] pid={} all AX levels failed, no recent interaction → clipboard popup",
+                    front_pid
+                );
+                return false;
             }
+
+            CFRelease(app_el);
 
             if err != 0 {
                 // Other AX error (e.g. app doesn't expose AX at all) → assume paste is right.

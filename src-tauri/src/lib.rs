@@ -1275,6 +1275,8 @@ fn register_fn_key_tap(
     }
 
     // CGEventType constants
+    const CG_EVENT_LEFT_MOUSE_DOWN: u32 = 1;
+    const CG_EVENT_RIGHT_MOUSE_DOWN: u32 = 3;
     const CG_EVENT_KEY_DOWN: u32 = 10;
     const CG_EVENT_KEY_UP: u32 = 11;
     const CG_EVENT_FLAGS_CHANGED: u32 = 12;
@@ -1289,8 +1291,11 @@ fn register_fn_key_tap(
     const TAP_TYPE: u32 = 1;
     const TAP_PLACE: u32 = 0;
     const TAP_LISTEN_ONLY: u32 = 1;
-    let event_mask: u64 =
-        (1u64 << CG_EVENT_KEY_DOWN) | (1u64 << CG_EVENT_KEY_UP) | (1u64 << CG_EVENT_FLAGS_CHANGED);
+    let event_mask: u64 = (1u64 << CG_EVENT_LEFT_MOUSE_DOWN)
+        | (1u64 << CG_EVENT_RIGHT_MOUSE_DOWN)
+        | (1u64 << CG_EVENT_KEY_DOWN)
+        | (1u64 << CG_EVENT_KEY_UP)
+        | (1u64 << CG_EVENT_FLAGS_CHANGED);
 
     // ── Processing thread ────────────────────────────────────────────────────
     // Fn/Globe key ALWAYS uses toggle semantics regardless of hotkey_mode:
@@ -1743,6 +1748,35 @@ fn register_fn_key_tap(
                         {
                             try_send_press(state, is_translate);
                         }
+                    }
+                }
+
+                // Track text-key events for the keyboard-activity focus heuristic.
+                // Keycode 0-52 = the standard typing zone (letters, numbers, punctuation,
+                // backspace, return). Skip modifier keys (53+) and skip while Fn is held
+                // (hotkey activation) or while recording a hotkey shortcut.
+                if !fn_held
+                    && keycode >= 0
+                    && keycode <= 52
+                    && !state.recording.load(Ordering::Relaxed)
+                {
+                    use objc2_app_kit::NSWorkspace;
+                    let workspace = NSWorkspace::sharedWorkspace();
+                    if let Some(front_app) = workspace.frontmostApplication() {
+                        crate::pipeline::record_text_key_activity(
+                            front_app.processIdentifier(),
+                        );
+                    }
+                }
+            }
+            CG_EVENT_LEFT_MOUSE_DOWN | CG_EVENT_RIGHT_MOUSE_DOWN => {
+                // Track mouse clicks so the keyboard-activity heuristic in pipeline.rs
+                // can detect "user clicked (possibly in a text field)" for AX-opaque apps.
+                if !state.recording.load(Ordering::Relaxed) {
+                    use objc2_app_kit::NSWorkspace;
+                    let workspace = NSWorkspace::sharedWorkspace();
+                    if let Some(front_app) = workspace.frontmostApplication() {
+                        crate::pipeline::record_click_activity(front_app.processIdentifier());
                     }
                 }
             }
