@@ -50,17 +50,7 @@ jobs:
         shell: pwsh
         run: if (Test-Path node_modules) { Remove-Item -Recurse -Force node_modules }
 
-      - name: Debug npm config
-        run: |
-          npm config list
-          cat ~/.npmrc 2>/dev/null || echo "no ~/.npmrc"
-        shell: bash
-
-      - name: Clear npm auth token
-        run: npm config delete //registry.npmjs.org/:_authToken || true
-        shell: bash
-
-      - run: npm ci
+      - run: npm install
 
       - name: Check signing status
         if: runner.os == 'macOS'

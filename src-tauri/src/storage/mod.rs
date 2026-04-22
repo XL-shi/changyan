@@ -114,8 +114,7 @@ impl ConfigManager {
         };
 
         // One-time migrations — save once if any migration applied.
-        let migrated =
-            migrate_legacy_hotkeys(&mut config) | migrate_team_llm_defaults(&mut config);
+        let migrated = migrate_legacy_hotkeys(&mut config) | migrate_team_llm_defaults(&mut config);
         if migrated {
             if let Ok(store) = self.app_handle.store("settings.json") {
                 if let Ok(val) = serde_json::to_value(&config) {

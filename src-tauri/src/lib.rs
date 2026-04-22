@@ -1763,9 +1763,7 @@ fn register_fn_key_tap(
                     use objc2_app_kit::NSWorkspace;
                     let workspace = NSWorkspace::sharedWorkspace();
                     if let Some(front_app) = workspace.frontmostApplication() {
-                        crate::pipeline::record_text_key_activity(
-                            front_app.processIdentifier(),
-                        );
+                        crate::pipeline::record_text_key_activity(front_app.processIdentifier());
                     }
                 }
             }

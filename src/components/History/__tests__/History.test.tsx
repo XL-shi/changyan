@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import React from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import { History } from '../index'
@@ -54,7 +55,7 @@ vi.mock('react-i18next', () => ({
 }))
 
 vi.mock('framer-motion', () => ({
-  AnimatePresence: ({ children }: { children?: any }) => children,
+  AnimatePresence: ({ children }: { children?: React.ReactNode }) => children,
   motion: {
     div: ({
       children,
@@ -62,14 +63,14 @@ vi.mock('framer-motion', () => ({
       whileTap: _whileTap,
       transition: _transition,
       ...props
-    }: Record<string, any>) => <div {...props}>{children}</div>,
+    }: Record<string, unknown>) => <div {...(props as React.HTMLAttributes<HTMLDivElement>)}>{children}</div>,
     button: ({
       children,
       whileHover: _whileHover,
       whileTap: _whileTap,
       transition: _transition,
       ...props
-    }: Record<string, any>) => <button {...props}>{children}</button>,
+    }: Record<string, unknown>) => <button {...(props as React.HTMLAttributes<HTMLButtonElement>)}>{children}</button>,
   },
 }))
 

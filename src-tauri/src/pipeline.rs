@@ -180,7 +180,10 @@ fn is_input_focused() -> bool {
 
             if err == K_AX_ERROR_API_DISABLED {
                 CFRelease(app_el);
-                tracing::info!("[Focus] AX disabled for pid={} → paste (non-ChangYan frontmost)", front_pid);
+                tracing::info!(
+                    "[Focus] AX disabled for pid={} → paste (non-ChangYan frontmost)",
+                    front_pid
+                );
                 return true;
             }
 
@@ -207,7 +210,8 @@ fn is_input_focused() -> bool {
                         }
                         tracing::info!(
                             "[Focus] pid={} AXFocusedWindow err={} → trying system-wide",
-                            front_pid, win_err
+                            front_pid,
+                            win_err
                         );
                         break 'win_check None;
                     }
@@ -227,7 +231,8 @@ fn is_input_focused() -> bool {
                         }
                         tracing::info!(
                             "[Focus] pid={} window.AXFocusedUIElement err={} → trying system-wide",
-                            front_pid, elem_err
+                            front_pid,
+                            elem_err
                         );
                         break 'win_check None;
                     }
@@ -262,15 +267,12 @@ fn is_input_focused() -> bool {
                     if !ok {
                         break 'win_check Some(true);
                     }
-                    let role =
-                        CStr::from_ptr(rbuf.as_ptr() as *const c_char).to_str().unwrap_or("");
+                    let role = CStr::from_ptr(rbuf.as_ptr() as *const c_char)
+                        .to_str()
+                        .unwrap_or("");
                     let is_text = matches!(
                         role,
-                        "AXTextField"
-                            | "AXTextArea"
-                            | "AXComboBox"
-                            | "AXSearchField"
-                            | "AXWebArea"
+                        "AXTextField" | "AXTextArea" | "AXComboBox" | "AXSearchField" | "AXWebArea"
                     );
                     tracing::info!(
                         "[Focus] pid={} window-level role='{}' → {}",
@@ -308,7 +310,8 @@ fn is_input_focused() -> bool {
                         }
                         tracing::info!(
                             "[Focus] pid={} system-wide no element (err={})",
-                            front_pid, sys_err
+                            front_pid,
+                            sys_err
                         );
                         break 'sys_check None;
                     }
@@ -318,7 +321,8 @@ fn is_input_focused() -> bool {
                     if elem_pid != front_pid {
                         tracing::info!(
                             "[Focus] pid={} system-wide element belongs to pid={}",
-                            front_pid, elem_pid
+                            front_pid,
+                            elem_pid
                         );
                         CFRelease(sys_elem);
                         break 'sys_check None;
@@ -341,7 +345,10 @@ fn is_input_focused() -> bool {
                             CFRelease(sys_role);
                         }
                         // Element from our app exists but no role → assume text input.
-                        tracing::info!("[Focus] pid={} system-wide element no role → paste", front_pid);
+                        tracing::info!(
+                            "[Focus] pid={} system-wide element no role → paste",
+                            front_pid
+                        );
                         break 'sys_check Some(true);
                     }
                     let mut sbuf = [0u8; 128];
@@ -355,15 +362,12 @@ fn is_input_focused() -> bool {
                     if !ok {
                         break 'sys_check Some(true);
                     }
-                    let sys_role_str =
-                        CStr::from_ptr(sbuf.as_ptr() as *const c_char).to_str().unwrap_or("");
+                    let sys_role_str = CStr::from_ptr(sbuf.as_ptr() as *const c_char)
+                        .to_str()
+                        .unwrap_or("");
                     let is_text = matches!(
                         sys_role_str,
-                        "AXTextField"
-                            | "AXTextArea"
-                            | "AXComboBox"
-                            | "AXSearchField"
-                            | "AXWebArea"
+                        "AXTextField" | "AXTextArea" | "AXComboBox" | "AXSearchField" | "AXWebArea"
                     );
                     tracing::info!(
                         "[Focus] pid={} system-wide role='{}' → {}",
@@ -395,7 +399,8 @@ fn is_input_focused() -> bool {
                     if age < 30_000 {
                         tracing::info!(
                             "[Focus] pid={} keyboard-heuristic: typed {}ms ago → paste",
-                            front_pid, age
+                            front_pid,
+                            age
                         );
                         return true;
                     }
@@ -408,7 +413,8 @@ fn is_input_focused() -> bool {
                     if age < 120_000 {
                         tracing::info!(
                             "[Focus] pid={} click-heuristic: clicked {}ms ago → paste",
-                            front_pid, age
+                            front_pid,
+                            age
                         );
                         return true;
                     }
@@ -436,11 +442,8 @@ fn is_input_focused() -> bool {
                 kCFStringEncodingUTF8,
             );
             let mut role_ref: CFTypeRef = std::ptr::null();
-            let role_err = AXUIElementCopyAttributeValue(
-                focused as AXUIElementRef,
-                role_attr,
-                &mut role_ref,
-            );
+            let role_err =
+                AXUIElementCopyAttributeValue(focused as AXUIElementRef, role_attr, &mut role_ref);
             CFRelease(role_attr);
             CFRelease(focused);
 
@@ -470,24 +473,25 @@ fn is_input_focused() -> bool {
 
             let result = matches!(
                 role_str,
-                "AXTextField"
-                    | "AXTextArea"
-                    | "AXComboBox"
-                    | "AXSearchField"
-                    | "AXWebArea"
+                "AXTextField" | "AXTextArea" | "AXComboBox" | "AXSearchField" | "AXWebArea"
             );
-            tracing::info!("[Focus] pid={} role='{}' → {}", front_pid, role_str, if result { "paste" } else { "clipboard popup" });
+            tracing::info!(
+                "[Focus] pid={} role='{}' → {}",
+                front_pid,
+                role_str,
+                if result { "paste" } else { "clipboard popup" }
+            );
             result
         }
     }
 
     #[cfg(target_os = "windows")]
     {
+        use windows_sys::Win32::Foundation::RECT;
         use windows_sys::Win32::UI::WindowsAndMessaging::{
             GetClassNameW, GetForegroundWindow, GetGUIThreadInfo, GetWindowThreadProcessId,
             GUITHREADINFO,
         };
-        use windows_sys::Win32::Foundation::RECT;
 
         unsafe {
             let hwnd = GetForegroundWindow();
@@ -757,7 +761,9 @@ impl PipelineHandle {
         // Emitting triggers the frontend to call bring_capsule_to_front which raises the capsule
         // window and makes ChangYan the frontmost app. Any focus check after that would see
         // the capsule (no text input) and always return false.
-        let input_focused_now = tokio::task::spawn_blocking(is_input_focused).await.unwrap_or(true);
+        let input_focused_now = tokio::task::spawn_blocking(is_input_focused)
+            .await
+            .unwrap_or(true);
         self.preloaded_input_focused
             .store(input_focused_now, Ordering::SeqCst);
         tracing::info!("[Focus] preloaded input_focused={}", input_focused_now);
@@ -1124,7 +1130,12 @@ impl PipelineHandle {
         // Pre-build LLM provider and Enigo while STT is still processing
         // Translate sessions always need the LLM even when polish is disabled.
         let is_translate_session = self.translate_session.load(Ordering::Relaxed);
-        tracing::info!("[Pipeline] stop: polish_enabled={} is_translate={} llm_key_len={}", config.polish_enabled, is_translate_session, config.llm_api_key.len());
+        tracing::info!(
+            "[Pipeline] stop: polish_enabled={} is_translate={} llm_key_len={}",
+            config.polish_enabled,
+            is_translate_session,
+            config.llm_api_key.len()
+        );
         let pre_llm = if (config.polish_enabled || is_translate_session)
             && (!config.llm_api_key.is_empty() || config.llm_provider == "cloud")
         {

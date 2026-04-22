@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Cloud, Key, Mic, Bot, Sparkles, Infinity, Layers } from 'lucide-react'
+import { Cloud, Key, Mic, Bot, Sparkles, Infinity as InfinityIcon, Layers } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../../stores/appStore'
 import { spring } from '../../lib/animations'
@@ -68,7 +68,7 @@ export function ModeSelectStep() {
             <span className="text-[14px] font-medium text-text-primary">{t('onboarding.modeBYOK')}</span>
             <p className="text-[13px] text-text-secondary">{t('onboarding.modeBYOKDesc')}</p>
             <div className="flex flex-col gap-0.5">
-              <Detail icon={Infinity} text={t('onboarding.modeBYOKUnlimited')} />
+              <Detail icon={InfinityIcon} text={t('onboarding.modeBYOKUnlimited')} />
               <Detail icon={Layers} text={t('onboarding.modeBYOKProviders')} />
             </div>
           </div>

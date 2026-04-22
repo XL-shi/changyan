@@ -9,7 +9,7 @@ vi.mock('../../../lib/tauri')
 // Mock i18n
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, params?: any) => {
+    t: (key: string, params?: Record<string, unknown>) => {
       const translations: Record<string, string> = {
         'settings.provider': 'Provider',
         'settings.apiKey': 'API Key',
@@ -59,12 +59,12 @@ const mockAppStore = {
 }
 
 const mockAuthStore = {
-  user: null as any,
-  plan: null as any,
+  user: null as null,
+  plan: null as null,
 }
 
 vi.mock('../../../stores/appStore', () => ({
-  useAppStore: (selector: any) => {
+  useAppStore: (selector: (s: typeof mockAppStore) => unknown) => {
     if (typeof selector === 'function') {
       return selector(mockAppStore)
     }
@@ -73,7 +73,7 @@ vi.mock('../../../stores/appStore', () => ({
 }))
 
 vi.mock('../../../stores/authStore', () => ({
-  useAuthStore: (selector: any) => {
+  useAuthStore: (selector: (s: typeof mockAuthStore) => unknown) => {
     if (typeof selector === 'function') {
       return selector(mockAuthStore)
     }
