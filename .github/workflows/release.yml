@@ -45,11 +45,7 @@ jobs:
         with:
           workspaces: src-tauri -> target
 
-      - name: Remove package-lock.json and node_modules
-        shell: bash
-        run: rm -f package-lock.json && rm -rf node_modules
-
-      - run: npm install
+      - run: npm ci
 
       - name: Check signing status
         if: runner.os == 'macOS'
