@@ -1,6 +1,6 @@
 [package]
 name = "changyan"
-version = "0.2.5"
+version = "0.2.6"
 description = "AI-powered speech-to-text and text polishing desktop app"
 authors = ["ChangYan Contributors"]
 license = "MIT"
