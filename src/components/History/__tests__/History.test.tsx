@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 
-import React from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import { History } from '../index'
@@ -55,22 +54,15 @@ vi.mock('react-i18next', () => ({
 }))
 
 vi.mock('framer-motion', () => ({
-  AnimatePresence: ({ children }: { children?: React.ReactNode }) => children,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  AnimatePresence: ({ children }: { children?: any }) => children,
   motion: {
-    div: ({
-      children,
-      whileHover: _whileHover,
-      whileTap: _whileTap,
-      transition: _transition,
-      ...props
-    }: Record<string, unknown>) => <div {...(props as React.HTMLAttributes<HTMLDivElement>)}>{children}</div>,
-    button: ({
-      children,
-      whileHover: _whileHover,
-      whileTap: _whileTap,
-      transition: _transition,
-      ...props
-    }: Record<string, unknown>) => <button {...(props as React.HTMLAttributes<HTMLButtonElement>)}>{children}</button>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    div: ({ children, whileHover: _whileHover, whileTap: _whileTap, transition: _transition, ...props }: Record<string, any>) =>
+      <div {...props}>{children}</div>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    button: ({ children, whileHover: _whileHover, whileTap: _whileTap, transition: _transition, ...props }: Record<string, any>) =>
+      <button {...props}>{children}</button>,
   },
 }))
 

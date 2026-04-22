@@ -9,7 +9,8 @@ vi.mock('../../../lib/tauri')
 // Mock i18n
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, params?: Record<string, unknown>) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    t: (key: string, params?: any) => {
       const translations: Record<string, string> = {
         'settings.provider': 'Provider',
         'settings.apiKey': 'API Key',
@@ -59,12 +60,15 @@ const mockAppStore = {
 }
 
 const mockAuthStore = {
-  user: null as null,
-  plan: null as null,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  user: null as any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  plan: null as any,
 }
 
 vi.mock('../../../stores/appStore', () => ({
-  useAppStore: (selector: (s: typeof mockAppStore) => unknown) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  useAppStore: (selector: any) => {
     if (typeof selector === 'function') {
       return selector(mockAppStore)
     }
@@ -73,7 +77,8 @@ vi.mock('../../../stores/appStore', () => ({
 }))
 
 vi.mock('../../../stores/authStore', () => ({
-  useAuthStore: (selector: (s: typeof mockAuthStore) => unknown) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  useAuthStore: (selector: any) => {
     if (typeof selector === 'function') {
       return selector(mockAuthStore)
     }
