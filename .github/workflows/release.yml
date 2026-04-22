@@ -36,7 +36,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -46,7 +45,6 @@ jobs:
         with:
           workspaces: src-tauri -> target
 
-      - run: npm cache clean --force
       - run: npm ci
 
       - name: Check signing status
