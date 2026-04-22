@@ -45,20 +45,11 @@ jobs:
         with:
           workspaces: src-tauri -> target
 
-      - name: Remove stale node_modules (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: if (Test-Path node_modules) { Remove-Item -Recurse -Force node_modules }
+      - name: Remove package-lock.json and node_modules
+        shell: bash
+        run: rm -f package-lock.json && rm -rf node_modules
 
       - run: npm install
-
-      - name: Install platform CLI binding (Windows)
-        if: runner.os == 'Windows'
-        run: npm install @tauri-apps/cli-win32-x64-msvc --no-save
-
-      - name: Install platform CLI binding (macOS)
-        if: runner.os == 'macOS'
-        run: npm install @tauri-apps/cli-darwin-arm64 --no-save
 
       - name: Check signing status
         if: runner.os == 'macOS'
