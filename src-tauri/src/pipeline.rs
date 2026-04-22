@@ -495,7 +495,7 @@ fn is_input_focused() -> bool {
 
         unsafe {
             let hwnd = GetForegroundWindow();
-            if hwnd == 0 {
+            if hwnd.is_null() {
                 return false;
             }
             let thread_id = GetWindowThreadProcessId(hwnd, std::ptr::null_mut());
@@ -505,12 +505,12 @@ fn is_input_focused() -> bool {
             let mut gti = GUITHREADINFO {
                 cbSize: std::mem::size_of::<GUITHREADINFO>() as u32,
                 flags: 0,
-                hwndActive: 0,
-                hwndFocus: 0,
-                hwndCapture: 0,
-                hwndMenuOwner: 0,
-                hwndMoveSize: 0,
-                hwndCaret: 0,
+                hwndActive: std::ptr::null_mut(),
+                hwndFocus: std::ptr::null_mut(),
+                hwndCapture: std::ptr::null_mut(),
+                hwndMenuOwner: std::ptr::null_mut(),
+                hwndMoveSize: std::ptr::null_mut(),
+                hwndCaret: std::ptr::null_mut(),
                 rcCaret: RECT {
                     left: 0,
                     top: 0,
@@ -521,12 +521,10 @@ fn is_input_focused() -> bool {
             if GetGUIThreadInfo(thread_id, &mut gti) == 0 {
                 return false;
             }
-            // An active text caret means a text input has keyboard focus.
-            if gti.hwndCaret != 0 {
+            if !gti.hwndCaret.is_null() {
                 return true;
             }
-            // Fallback: check focused HWND class name for classic Win32 text controls.
-            if gti.hwndFocus == 0 {
+            if gti.hwndFocus.is_null() {
                 return false;
             }
             let mut buf = [0u16; 256];
