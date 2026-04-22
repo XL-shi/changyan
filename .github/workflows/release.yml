@@ -46,6 +46,7 @@ jobs:
         with:
           workspaces: src-tauri -> target
 
+      - run: npm cache clean --force
       - run: npm ci
 
       - name: Check signing status
