@@ -45,6 +45,21 @@ jobs:
         with:
           workspaces: src-tauri -> target
 
+      - name: Remove stale node_modules (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: if (Test-Path node_modules) { Remove-Item -Recurse -Force node_modules }
+
+      - name: Debug npm config
+        run: |
+          npm config list
+          cat ~/.npmrc 2>/dev/null || echo "no ~/.npmrc"
+        shell: bash
+
+      - name: Clear npm auth token
+        run: npm config delete //registry.npmjs.org/:_authToken || true
+        shell: bash
+
       - run: npm ci
 
       - name: Check signing status
