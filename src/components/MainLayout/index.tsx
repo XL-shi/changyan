@@ -1,17 +1,16 @@
-import { Home, Settings, History /*Crown, CircleUser*/ } from 'lucide-react'
+import { Home, Settings, History } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { spring } from '../../lib/animations'
 import { useRoute, type Route } from '../../lib/router'
-// import { useAuthStore } from '../../stores/authStore'
 
-const baseNavItems: { id: Route; labelKey: string; icon: typeof Home }[] = [
-  { id: 'home', labelKey: 'nav.home', icon: Home },
-  { id: 'settings', labelKey: 'nav.settings', icon: Settings },
-  { id: 'history', labelKey: 'nav.history', icon: History },
+const APP_VERSION = '0.3.3'
+
+const NAV_ITEMS: { id: Route; num: string; labelKey: string; icon: typeof Home }[] = [
+  { id: 'home', num: '01', labelKey: 'nav.home', icon: Home },
+  { id: 'settings', num: '02', labelKey: 'nav.settings', icon: Settings },
+  { id: 'history', num: '03', labelKey: 'nav.history', icon: History },
 ]
-
-// const bottomNavItem = { id: 'account' as Route, labelKey: 'nav.account', icon: CircleUser }
 
 interface Props {
   children: React.ReactNode
@@ -19,125 +18,89 @@ interface Props {
 
 export function MainLayout({ children }: Props) {
   const { route, navigate } = useRoute()
-  // const { /*plan*/ } = useAuthStore()
   const { t } = useTranslation()
-  // const isPro = plan === 'pro'
 
   return (
     <div className="w-full h-full flex bg-bg-primary text-text-primary">
-      {/* Sidebar — jelly surface */}
-      <aside className="w-[208px] flex flex-col border-r border-border jelly-surface-flat shrink-0">
-        {/* Logo */}
-        <div className="px-5 pt-5 pb-4" data-tauri-drag-region>
-          <h1 className="text-[15px] font-semibold tracking-tight">{t('app.name')}</h1>
-          <p className="text-[11px] text-text-tertiary mt-0.5">{t('app.tagline')}</p>
+      {/* ── Sidebar ── */}
+      <aside className="w-[200px] flex flex-col bg-bg-secondary border-r border-border shrink-0">
+        {/* Brand */}
+        <div className="px-6 pt-7 pb-6" data-tauri-drag-region>
+          <h1 className="cy-mark text-[22px] text-text-primary">{t('app.name')}</h1>
+          <p
+            className="mt-2 text-[11px] text-text-secondary tracking-[0.08em] uppercase"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            {t('app.tagline')}
+          </p>
         </div>
 
-        {/* Main Nav */}
-        <nav className="flex-1 px-3 space-y-0.5 relative" aria-label="Main navigation">
-          {baseNavItems.map(({ id, labelKey, icon: Icon }) => {
+        {/* Divider */}
+        <div className="cy-rule" />
+
+        {/* Nav */}
+        <nav className="flex-1 pt-1" aria-label="Main navigation">
+          {NAV_ITEMS.map(({ id, num, labelKey, icon: Icon }) => {
             const active = route === id
             const label = t(labelKey)
             return (
               <motion.button
                 key={id}
                 onClick={() => navigate(id)}
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scaleX: 1.05, scaleY: 0.95 }}
-                transition={spring.jellyGentle}
+                whileTap={{ scale: 0.98 }}
+                transition={spring.snappy}
                 aria-label={label}
                 aria-current={active ? 'page' : undefined}
-                className={`flex items-center gap-2.5 w-full px-3 py-2 text-[13px] rounded-[8px] transition-colors bg-transparent border-none cursor-pointer text-left relative ${
-                  active
-                    ? 'text-text-primary font-medium'
-                    : 'text-text-secondary hover:text-text-primary'
-                }`}
+                className="relative w-full bg-transparent border-none cursor-pointer text-left"
               >
+                {/* Fence indicator — two horizontal rules framing the active item */}
                 {active && (
                   <motion.div
-                    layoutId="nav-indicator"
-                    className="absolute inset-0 jelly-nav-active"
-                    transition={spring.jellyGentle}
+                    layoutId="nav-fence"
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                      borderTop: '1px solid var(--color-accent)',
+                      borderBottom: '1px solid var(--color-accent)',
+                    }}
+                    transition={spring.snappy}
                   />
                 )}
-                <span className="relative z-10 flex items-center gap-2.5">
-                  <Icon size={16} />
-                  {label}
-                </span>
+
+                <div
+                  className={`flex items-center gap-3 px-6 py-3.5 transition-colors ${
+                    active
+                      ? 'text-text-primary'
+                      : 'text-text-secondary hover:text-text-primary'
+                  }`}
+                >
+                  {/* Number prefix */}
+                  <span
+                    className="text-[11px] w-5 shrink-0 text-text-tertiary"
+                    style={{ fontFamily: 'var(--font-display)' }}
+                  >
+                    {num}
+                  </span>
+                  <Icon size={14} strokeWidth={active ? 2 : 1.5} />
+                  <span className={`text-[13px] ${active ? 'font-medium' : ''}`}>{label}</span>
+                </div>
               </motion.button>
             )
           })}
-
-          {/* Upgrade / Pro nav item — temporarily hidden */}
-          {/*(() => {
-            const active = route === 'upgrade'
-            return (
-              <motion.button
-                onClick={() => navigate('upgrade')}
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scaleX: 1.05, scaleY: 0.95 }}
-                transition={spring.jellyGentle}
-                className={`flex items-center gap-2.5 w-full px-3 py-2 text-[13px] rounded-[8px] transition-colors bg-transparent border-none cursor-pointer text-left relative ${
-                  active
-                    ? 'text-text-primary font-medium'
-                    : isPro
-                      ? 'text-amber-500 hover:text-amber-400'
-                      : 'text-text-secondary hover:text-text-primary'
-                }`}
-              >
-                {active && (
-                  <motion.div
-                    layoutId="nav-indicator"
-                    className="absolute inset-0 jelly-nav-active"
-                    transition={spring.jellyGentle}
-                  />
-                )}
-                <span className="relative z-10 flex items-center gap-2.5">
-                  <Crown size={16} className={isPro ? 'text-amber-500' : ''} />
-                  {isPro ? t('nav.pro') : t('nav.upgrade')}
-                </span>
-              </motion.button>
-            )
-          })()*/}
         </nav>
 
-        {/* Bottom: Account — temporarily hidden */}
-        {/*<div className="px-3 pb-3 mt-auto border-t border-border pt-3">
-          {(() => {
-            const { id, labelKey, icon: Icon } = bottomNavItem
-            const active = route === id
-            const label = t(labelKey)
-            return (
-              <motion.button
-                onClick={() => navigate(id)}
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scaleX: 1.05, scaleY: 0.95 }}
-                transition={spring.jellyGentle}
-                className={`flex items-center gap-2.5 w-full px-3 py-2 text-[13px] rounded-[8px] transition-colors bg-transparent border-none cursor-pointer text-left relative ${
-                  active
-                    ? 'text-text-primary font-medium'
-                    : 'text-text-secondary hover:text-text-primary'
-                }`}
-              >
-                {active && (
-                  <motion.div
-                    layoutId="nav-indicator"
-                    className="absolute inset-0 jelly-nav-active"
-                    transition={spring.jellyGentle}
-                  />
-                )}
-                <span className="relative z-10 flex items-center gap-2.5">
-                  <Icon size={16} />
-                  {label}
-                </span>
-              </motion.button>
-            )
-          })()}
-        </div>*/}
+        {/* Version */}
+        <div className="px-6 pb-5">
+          <span
+            className="text-[11px] text-text-tertiary"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            v{APP_VERSION}
+          </span>
+        </div>
       </aside>
 
-      {/* Content */}
-      <main className="flex-1 min-w-0 overflow-y-auto">{children}</main>
+      {/* ── Content ── */}
+      <main className="flex-1 min-w-0 overflow-y-auto bg-bg-primary">{children}</main>
     </div>
   )
 }

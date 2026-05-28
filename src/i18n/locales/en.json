@@ -24,6 +24,7 @@
   "home": {
     "welcome": "Welcome to ChangYan",
     "description": "Hold {{hotkey}} to start voice recording. Your speech will be transcribed and optionally polished by AI.",
+    "recordHint": "Hold to start recording",
     "totalRecordings": "Total Recordings",
     "today": "Today",
     "proPlan": "Pro Plan",
@@ -40,6 +41,8 @@
   "onboarding": {
     "welcomeTitle": "Welcome to ChangYan",
     "welcomeSubtitle": "A few quick steps to get started with voice input",
+    "step_welcome": "Welcome",
+    "step_done": "Done",
     "speechRecognition": "Speech Recognition",
     "speechRecognitionDesc": "Configure your ASR service to convert speech to text",
     "aiPolish": "AI Polish",

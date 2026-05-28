@@ -127,6 +127,7 @@ export function Onboarding() {
       totalSteps={TOTAL_STEPS}
       title={titles[step].title}
       subtitle={titles[step].subtitle}
+      description={step === 0 ? t('onboarding.speakToWrite') : undefined}
       canNext={canNext && !isFinalizing}
       canBack={step > 0}
       nextLabel={

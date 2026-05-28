@@ -47,12 +47,12 @@ export function Settings() {
         {/* Content */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Title bar */}
-          <div className="flex items-center justify-between px-6 pt-4 pb-3 border-b border-border bg-bg-primary/50">
-            <h2 className="text-[15px] font-medium">{t(paneTitleKeys[activePane])}</h2>
+          <div className="flex items-center px-8 py-4 border-b border-border bg-bg-secondary">
+            <h2 className="text-[13px] font-medium text-text-primary">{t(paneTitleKeys[activePane])}</h2>
           </div>
 
           {/* Pane content */}
-          <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-5">
+          <div ref={scrollRef} className="flex-1 overflow-y-auto px-8 py-6 bg-bg-primary">
             <div className="w-full">
               {activePane === 'general' && <GeneralPane />}
               {activePane === 'stt' && <SttPane />}

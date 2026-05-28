@@ -20,27 +20,19 @@ export function WelcomeStep() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="text-center py-4">
-        <div className="text-[40px] mb-2">🎙</div>
-        <p className="text-[15px] text-text-secondary leading-relaxed">
-          {t('onboarding.speakToWrite')}
-        </p>
-      </div>
-
+    <div className="space-y-7">
+      {/* UI Language */}
       <div>
-        <p className="text-[13px] font-medium text-text-secondary mb-3">
-          {t('settings.uiLanguage')}
-        </p>
+        <p className="cy-label mb-3">{t('settings.uiLanguage')}</p>
         <div className="flex gap-2">
           {UI_LANGUAGES.map((lang) => (
             <button
               key={lang.value}
               onClick={() => handleUiLanguage(lang.value)}
-              className={`flex-1 px-4 py-3 rounded-[10px] text-[13px] border cursor-pointer transition-all ${
+              className={`flex-1 px-4 py-3 text-[13px] border cursor-pointer transition-colors rounded-[4px] ${
                 config.ui_language === lang.value
-                  ? 'bg-accent/10 border-accent text-accent font-medium'
-                  : 'bg-bg-secondary border-border text-text-primary hover:border-text-tertiary'
+                  ? 'border-[var(--color-accent)] text-text-primary font-medium bg-[var(--color-accent-light)]'
+                  : 'border-border text-text-secondary bg-bg-secondary hover:border-border-strong hover:text-text-primary'
               }`}
             >
               {lang.label}
@@ -49,19 +41,18 @@ export function WelcomeStep() {
         </div>
       </div>
 
+      {/* Recognition Language */}
       <div>
-        <p className="text-[13px] font-medium text-text-secondary mb-3">
-          {t('onboarding.recognitionLanguage')}
-        </p>
+        <p className="cy-label mb-3">{t('onboarding.recognitionLanguage')}</p>
         <div className="grid grid-cols-2 gap-2">
           {LANGUAGES.map((lang) => (
             <button
               key={lang.value}
               onClick={() => updateConfig({ stt_language: lang.value })}
-              className={`px-4 py-3 rounded-[10px] text-[13px] border cursor-pointer transition-all ${
+              className={`px-4 py-2.5 text-[13px] border cursor-pointer transition-colors text-left rounded-[4px] ${
                 config.stt_language === lang.value
-                  ? 'bg-accent/10 border-accent text-accent font-medium'
-                  : 'bg-bg-secondary border-border text-text-primary hover:border-text-tertiary'
+                  ? 'border-[var(--color-accent)] text-text-primary font-medium bg-[var(--color-accent-light)]'
+                  : 'border-border text-text-secondary bg-bg-secondary hover:border-border-strong hover:text-text-primary'
               }`}
             >
               {lang.label}

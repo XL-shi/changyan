@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Check, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../../stores/appStore'
 
@@ -20,63 +20,46 @@ export function DoneStep({
   const config = useAppStore((s) => s.config)
 
   return (
-    <div className="flex flex-col items-center gap-5 py-2">
-      {/* Success animation */}
-      <motion.div
-        className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center"
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ type: 'spring', stiffness: 500, damping: 20 }}
-      >
-        <motion.div
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.2, type: 'spring', stiffness: 500, damping: 20 }}
-        >
-          <Check size={28} className="text-success" />
-        </motion.div>
-      </motion.div>
-
-      <div className="text-center">
-        <h2 className="text-[17px] font-semibold text-text-primary">{t('onboarding.allSet')}</h2>
-        {/* <p className="text-[13px] text-text-secondary mt-1">
-          {t('onboarding.capsuleOnDesktop')}
-        </p> */}
-      </div>
-
+    <div className="space-y-6">
+      {/* Status */}
       {showModelDownloadStatus && (isFinalizing || modelDownloadError) && (
-        <div className="w-full rounded-[10px] bg-bg-secondary px-4 py-3 text-center">
+        <div className="flex items-center gap-3 px-4 py-3 border border-border rounded-[4px] bg-bg-secondary">
           {isFinalizing ? (
-            <div className="flex items-center justify-center gap-2 text-[12px] text-text-secondary">
-              <Loader2 size={13} className="animate-spin" />
-              <span>
+            <>
+              <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
+                <Loader2 size={13} className="text-text-tertiary" />
+              </motion.div>
+              <span className="text-[12px] text-text-secondary" style={{ fontFamily: 'var(--font-display)' }}>
                 {t('settings.downloadingModel')} {Math.round(modelDownloadProgress)}%
               </span>
-            </div>
+            </>
           ) : (
             <p className="text-[12px] text-error">{modelDownloadError}</p>
           )}
         </div>
       )}
 
-      {/* Usage tips */}
-      <div className="w-full space-y-3">
-        <ShortcutTip
-          title={t('settings.voiceInputHotkey')}
-          desc={t('settings.voiceInputHotkeyDesc')}
-          hotkey={config.hotkey}
-        />
-        <ShortcutTip
-          title={t('settings.translateHotkey')}
-          desc={t('settings.translateHotkeyDesc')}
-          hotkey={config.translate_hotkey}
-        />
+      {/* Shortcuts */}
+      <div>
+        <p className="cy-label mb-3">{t('onboarding.allSet')}</p>
+        <div className="space-y-2">
+          <ShortcutRow
+            title={t('settings.voiceInputHotkey')}
+            desc={t('settings.voiceInputHotkeyDesc')}
+            hotkey={config.hotkey}
+          />
+          <ShortcutRow
+            title={t('settings.translateHotkey')}
+            desc={t('settings.translateHotkeyDesc')}
+            hotkey={config.translate_hotkey}
+          />
+        </div>
       </div>
     </div>
   )
 }
 
-function ShortcutTip({
+function ShortcutRow({
   title,
   desc,
   hotkey,
@@ -88,24 +71,28 @@ function ShortcutTip({
   const chips = parseHotkeyChips(hotkey)
 
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3 bg-bg-secondary rounded-[10px]">
+    <div className="flex items-center justify-between gap-4 px-4 py-3 border border-border rounded-[4px] bg-bg-secondary">
       <div className="min-w-0">
         <p className="text-[13px] font-medium text-text-primary">{title}</p>
-        <p className="text-[11px] text-text-tertiary">{desc}</p>
+        <p className="text-[11px] text-text-tertiary mt-0.5">{desc}</p>
       </div>
-      <div className="flex items-center gap-1.5 shrink-0">
+      <div className="flex items-center gap-1 shrink-0">
         {chips.length ? (
           chips.map((chip) => (
-            <span
+            <kbd
               key={`${title}-${chip}`}
-              className="px-2.5 py-1 rounded-[10px] text-[16px] font-mono bg-bg-tertiary border border-border text-text-primary leading-none"
+              className="px-2 py-0.5 text-[11px] border border-border rounded-[3px] text-text-primary bg-bg-tertiary"
+              style={{ fontFamily: 'var(--font-display)' }}
             >
               {chip}
-            </span>
+            </kbd>
           ))
         ) : (
-          <span className="px-2.5 py-1 rounded-[10px] text-[12px] bg-bg-tertiary border border-border text-text-tertiary leading-none">
-            -
+          <span
+            className="px-2 py-0.5 text-[11px] border border-border rounded-[3px] text-text-tertiary bg-bg-tertiary"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            —
           </span>
         )}
       </div>

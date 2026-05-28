@@ -1,4 +1,4 @@
-import { Mic, Settings, History, Crown } from 'lucide-react'
+import { ArrowRight, Crown } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { spring } from '../../lib/animations'
@@ -20,154 +20,119 @@ export function HomePage() {
   const todayCount = history.filter((h) => h.created_at.startsWith(today)).length
 
   return (
-    <div className="p-6">
-      {/* Welcome */}
-      <div className="rounded-[18px] p-5 jelly-card mb-2.5">
-        <div className="flex items-center gap-3 mb-2">
-          <div
-            className="w-9 h-9 rounded-[10px] flex items-center justify-center"
-            style={{
-              background: 'linear-gradient(145deg, rgba(42,187,167,0.15), rgba(42,187,167,0.08))',
-            }}
-          >
-            <Mic size={18} className="text-text-secondary" />
+    <div className="h-full flex flex-col overflow-y-auto">
+      {/* ── Hotkey hint ── */}
+      <div className="flex items-center justify-between px-8 py-4 border-b border-border">
+        <p className="text-[13px] text-text-secondary">{t('home.recordHint')}</p>
+        <kbd
+          className="shrink-0 ml-4 px-2 py-0.5 rounded text-[11px] text-text-primary border border-border-strong"
+          style={{ fontFamily: 'var(--font-display)' }}
+        >
+          {config.hotkey}
+        </kbd>
+      </div>
+
+      {/* ── Hero stats ── */}
+      <div className="px-8 py-8 border-b border-border">
+        <div className="grid grid-cols-2">
+          <div className="pr-8 border-r border-border">
+            <p className="cy-stat text-[52px] text-text-primary">{history.length}</p>
+            <p className="cy-label mt-2">{t('home.totalRecordings')}</p>
           </div>
-          <h2 className="text-[17px] font-semibold">{t('home.welcome')}</h2>
-        </div>
-        <p className="text-[14px] text-text-secondary leading-relaxed">
-          {t('home.description', { hotkey: config.hotkey })}
-        </p>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 mb-2.5">
-        <div className="rounded-[18px] p-4 jelly-card">
-          <p className="text-[11px] text-text-tertiary uppercase tracking-wider mb-1">
-            {t('home.totalRecordings')}
-          </p>
-          <p className="text-[22px] font-semibold">{history.length}</p>
-        </div>
-        <div className="rounded-[18px] p-4 jelly-card">
-          <p className="text-[11px] text-text-tertiary uppercase tracking-wider mb-1">
-            {t('home.today')}
-          </p>
-          <p className="text-[22px] font-semibold">{todayCount}</p>
+          <div className="pl-8">
+            <p className="cy-stat text-[52px] text-text-primary">{todayCount}</p>
+            <p className="cy-label mt-2">{t('home.today')}</p>
+          </div>
         </div>
       </div>
 
-      {/* Plan / Quota summary */}
+      {/* ── Configuration ── */}
+      <div className="px-8 py-6 border-b border-border">
+        <p className="cy-label mb-4">{t('home.currentConfig')}</p>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+          <ConfigItem label={t('home.sttProvider')} value={config.stt_provider} />
+          <ConfigItem label={t('home.llmProvider')} value={config.llm_provider} />
+          <ConfigItem
+            label={t('home.aiPolish')}
+            value={config.polish_enabled ? t('home.enabled') : t('home.disabled')}
+          />
+          <ConfigItem label={t('home.outputMode')} value={config.output_mode} />
+        </div>
+      </div>
+
+      {/* ── Plan / Quota — cloud users only ── */}
       {user && (
-        <div className="rounded-[18px] p-5 jelly-card mb-2.5">
-          {isPro ? (
-            <>
-              <div className="flex items-center gap-2 mb-3">
-                <Crown size={16} className="text-amber-500" />
-                <h3 className="text-[13px] font-medium">{t('home.proPlan')}</h3>
-              </div>
-              <div className="space-y-3">
-                <QuotaBar
-                  label={t('upgrade.stt')}
-                  used={sttSecondsUsed}
-                  limit={sttSecondsLimit}
-                  unit="hours"
-                  divisor={3600}
-                />
-                <QuotaBar
-                  label={t('upgrade.llm')}
-                  used={llmTokensUsed}
-                  limit={llmTokensLimit}
-                  unit="k tokens"
-                  divisor={1000}
-                />
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="flex items-center justify-between">
-                <h3 className="text-[13px] font-medium">{t('home.freePlan')}</h3>
-                <button
-                  onClick={() => navigate('upgrade')}
-                  className="text-[12px] text-accent font-medium bg-transparent border-none cursor-pointer hover:underline"
-                >
-                  {t('home.upgradeToPro')}
-                </button>
-              </div>
-              {sttSecondsLimit > 0 && (
-                <div className="space-y-3 mt-3">
-                  <QuotaBar
-                    label={t('upgrade.stt')}
-                    used={sttSecondsUsed}
-                    limit={sttSecondsLimit}
-                    unit="min"
-                    divisor={60}
-                  />
-                  <QuotaBar
-                    label={t('upgrade.llm')}
-                    used={llmTokensUsed}
-                    limit={llmTokensLimit}
-                    unit="k tokens"
-                    divisor={1000}
-                  />
-                </div>
-              )}
-            </>
+        <div className="px-8 py-6 border-b border-border">
+          <div className="flex items-center gap-2 mb-4">
+            {isPro && <Crown size={11} className="text-amber-500" />}
+            <p className="cy-label">{isPro ? t('home.proPlan') : t('home.freePlan')}</p>
+            {!isPro && (
+              <button
+                onClick={() => navigate('upgrade')}
+                className="ml-auto text-[11px] text-text-secondary hover:text-text-primary bg-transparent border-none cursor-pointer transition-colors underline"
+                style={{ fontFamily: 'var(--font-display)' }}
+              >
+                {t('home.upgradeToPro')}
+              </button>
+            )}
+          </div>
+          {sttSecondsLimit > 0 && (
+            <div className="space-y-4">
+              <QuotaRow
+                label={t('upgrade.stt')}
+                used={sttSecondsUsed}
+                limit={sttSecondsLimit}
+                unit="h"
+                divisor={3600}
+              />
+              <QuotaRow
+                label={t('upgrade.llm')}
+                used={llmTokensUsed}
+                limit={llmTokensLimit}
+                unit="k"
+                divisor={1000}
+              />
+            </div>
           )}
         </div>
       )}
 
-      {/* Current config */}
-      <div className="rounded-[18px] p-5 jelly-card mb-2.5">
-        <h3 className="text-[13px] font-medium mb-3">{t('home.currentConfig')}</h3>
-        <div className="text-[13px]">
-          <div className="flex justify-between px-3 py-2.5 rounded-[8px] bg-bg-primary mb-2">
-            <span className="text-text-secondary">{t('home.sttProvider')}</span>
-            <span className="text-text-primary font-medium">{config.stt_provider}</span>
-          </div>
-          <div className="flex justify-between px-3 py-2.5 rounded-[8px] bg-bg-primary mb-2">
-            <span className="text-text-secondary">{t('home.llmProvider')}</span>
-            <span className="text-text-primary font-medium">{config.llm_provider}</span>
-          </div>
-          <div className="flex justify-between px-3 py-2.5 rounded-[8px] bg-bg-primary mb-2">
-            <span className="text-text-secondary">{t('home.aiPolish')}</span>
-            <span className="text-text-primary font-medium">
-              {config.polish_enabled ? t('home.enabled') : t('home.disabled')}
-            </span>
-          </div>
-          <div className="flex justify-between px-3 py-2.5 rounded-[8px] bg-bg-primary">
-            <span className="text-text-secondary">{t('home.outputMode')}</span>
-            <span className="text-text-primary font-medium">{config.output_mode}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Quick actions */}
-      <div className="grid grid-cols-2 gap-3">
-        <motion.button
-          onClick={() => navigate('settings')}
-          whileHover={{ scale: 1.04 }}
-          whileTap={{ scaleX: 1.06, scaleY: 0.94 }}
-          transition={spring.jellyGentle}
-          className="flex items-center gap-2.5 rounded-[14px] p-4 cursor-pointer text-left jelly-btn"
-        >
-          <Settings size={16} className="text-text-secondary" />
-          <span className="text-[13px] font-medium">{t('nav.settings')}</span>
-        </motion.button>
-        <motion.button
-          onClick={() => navigate('history')}
-          whileHover={{ scale: 1.04 }}
-          whileTap={{ scaleX: 1.06, scaleY: 0.94 }}
-          transition={spring.jellyGentle}
-          className="flex items-center gap-2.5 rounded-[14px] p-4 cursor-pointer text-left jelly-btn"
-        >
-          <History size={16} className="text-text-secondary" />
-          <span className="text-[13px] font-medium">{t('nav.history')}</span>
-        </motion.button>
+      {/* ── Quick actions ── */}
+      <div className="px-8 py-6 flex gap-8">
+        <NavLink label={t('nav.settings')} onClick={() => navigate('settings')} />
+        <NavLink label={t('nav.history')} onClick={() => navigate('history')} />
       </div>
     </div>
   )
 }
 
-function QuotaBar({
+/* ── Sub-components ── */
+
+function ConfigItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="cy-label mb-1">{label}</p>
+      <p className="cy-config-value">{value}</p>
+    </div>
+  )
+}
+
+function NavLink({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <motion.button
+      onClick={onClick}
+      whileHover={{ x: 2 }}
+      whileTap={{ scale: 0.97 }}
+      transition={spring.snappy}
+      className="flex items-center gap-1.5 text-[13px] text-text-secondary hover:text-text-primary bg-transparent border-none cursor-pointer transition-colors"
+    >
+      <ArrowRight size={13} strokeWidth={1.75} />
+      {label}
+    </motion.button>
+  )
+}
+
+function QuotaRow({
   label,
   used,
   limit,
@@ -185,16 +150,19 @@ function QuotaBar({
   const limitDisplay = (limit / divisor).toFixed(1)
 
   return (
-    <div className="space-y-1">
-      <div className="flex justify-between text-[12px]">
-        <span className="text-text-secondary">{label}</span>
-        <span className="text-text-tertiary">
-          {usedDisplay} / {limitDisplay} {unit}
+    <div>
+      <div className="flex justify-between items-baseline mb-1.5">
+        <span className="text-[12px] text-text-secondary">{label}</span>
+        <span
+          className="text-[11px] text-text-tertiary"
+          style={{ fontFamily: 'var(--font-display)' }}
+        >
+          {usedDisplay}/{limitDisplay}{unit}
         </span>
       </div>
-      <div className="h-1.5 bg-bg-secondary rounded-full overflow-hidden">
+      <div className="h-px bg-border overflow-hidden rounded-full">
         <div
-          className={`h-full rounded-full transition-all ${pct > 90 ? 'bg-red-500' : 'bg-accent'}`}
+          className={`h-full transition-all ${pct > 90 ? 'bg-error' : 'bg-text-secondary'}`}
           style={{ width: `${pct}%` }}
         />
       </div>

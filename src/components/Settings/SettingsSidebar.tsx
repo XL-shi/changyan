@@ -1,4 +1,4 @@
-import { Settings, Mic, Sparkles /*, BookOpen, Info, LayoutGrid*/ } from 'lucide-react'
+import { Settings, Mic, Sparkles } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { spring } from '../../lib/animations'
@@ -7,9 +7,6 @@ const PANES = [
   { id: 'general', labelKey: 'settings.general', icon: Settings },
   { id: 'stt', labelKey: 'settings.speechRecognition', icon: Mic },
   { id: 'llm', labelKey: 'settings.aiPolish', icon: Sparkles },
-  // { id: 'dictionary', labelKey: 'settings.dictionary', icon: BookOpen },
-  // { id: 'scenes', labelKey: 'settings.scenes', icon: LayoutGrid },
-  // { id: 'about', labelKey: 'settings.about', icon: Info },
 ] as const
 
 export type PaneId = (typeof PANES)[number]['id']
@@ -23,40 +20,57 @@ export function SettingsSidebar({ activePane, onSelect }: Props) {
   const { t } = useTranslation()
 
   return (
-    <div className="w-[200px] h-full jelly-surface-flat border-r border-border flex flex-col py-4 px-2 gap-0.5">
-      <h2 className="text-[13px] font-semibold text-text-primary px-3 pb-3">
-        {t('settings.title')}
-      </h2>
-      {PANES.map((pane) => {
-        const Icon = pane.icon
-        const isActive = activePane === pane.id
-        return (
-          <motion.button
-            key={pane.id}
-            onClick={() => onSelect(pane.id)}
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scaleX: 1.05, scaleY: 0.95 }}
-            transition={spring.jellyGentle}
-            className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-[8px] text-[13px] border-none cursor-pointer transition-colors text-left relative ${
-              isActive
-                ? 'text-text-primary font-medium'
-                : 'bg-transparent text-text-secondary hover:text-text-primary'
-            }`}
-          >
-            {isActive && (
-              <motion.div
-                layoutId="settings-nav-indicator"
-                className="absolute inset-0 jelly-nav-active"
-                transition={spring.jellyGentle}
-              />
-            )}
-            <span className="relative z-10 flex items-center gap-2.5">
-              <Icon size={16} />
-              {t(pane.labelKey)}
-            </span>
-          </motion.button>
-        )
-      })}
+    <div className="w-[180px] h-full bg-bg-secondary border-r border-border flex flex-col shrink-0">
+      {/* Label */}
+      <div className="px-6 py-4 border-b border-border">
+        <span
+          className="cy-label"
+          style={{ fontFamily: 'var(--font-display)' }}
+        >
+          {t('settings.title')}
+        </span>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 pt-1" aria-label="Settings navigation">
+        {PANES.map((pane) => {
+          const Icon = pane.icon
+          const isActive = activePane === pane.id
+          return (
+            <motion.button
+              key={pane.id}
+              onClick={() => onSelect(pane.id)}
+              whileTap={{ scale: 0.98 }}
+              transition={spring.snappy}
+              className="relative w-full bg-transparent border-none cursor-pointer text-left"
+            >
+              {isActive && (
+                <motion.div
+                  layoutId="settings-nav-fence"
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    borderTop: '1px solid var(--color-accent)',
+                    borderBottom: '1px solid var(--color-accent)',
+                  }}
+                  transition={spring.snappy}
+                />
+              )}
+              <div
+                className={`flex items-center gap-2.5 px-6 py-3.5 transition-colors ${
+                  isActive
+                    ? 'text-text-primary'
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                <Icon size={13} strokeWidth={isActive ? 2 : 1.5} />
+                <span className={`text-[13px] ${isActive ? 'font-medium' : ''}`}>
+                  {t(pane.labelKey)}
+                </span>
+              </div>
+            </motion.button>
+          )
+        })}
+      </nav>
     </div>
   )
 }

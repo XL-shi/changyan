@@ -24,6 +24,7 @@
   "home": {
     "welcome": "欢迎使用 ChangYan",
     "description": "按下 {{hotkey}} 开启录音，再次按下即可结束。开口即转文字，声落成文。",
+    "recordHint": "按住快捷键开始录音",
     "totalRecordings": "总录音数",
     "today": "今日",
     "proPlan": "Pro 计划",
@@ -40,6 +41,8 @@
   "onboarding": {
     "welcomeTitle": "欢迎使用 ChangYan",
     "welcomeSubtitle": "几个简单步骤，即可开始语音输入",
+    "step_welcome": "欢迎",
+    "step_done": "完成",
     "speechRecognition": "语音识别",
     "speechRecognitionDesc": "配置 ASR 服务，将语音转换为文字",
     "aiPolish": "AI 润色",
