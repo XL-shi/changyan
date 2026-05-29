@@ -41,7 +41,11 @@ export function OnboardingLayout({
   }
 
   // Short labels for each step in the left panel
-  const stepLabelKeys = ['onboarding.step_welcome', 'onboarding.step_done']
+  const stepLabelKeys = [
+    'onboarding.step_welcome',
+    'onboarding.step_llm',
+    'onboarding.step_done',
+  ]
 
   return (
     <div className="w-full h-full flex flex-col bg-bg-primary text-text-primary">

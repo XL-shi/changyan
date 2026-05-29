@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { confirm } from '@tauri-apps/plugin-dialog'
 import { useTranslation } from 'react-i18next'
-import { Search, Copy } from 'lucide-react'
+import { Search, Copy, Check, Trash2 } from 'lucide-react'
 import { spring } from '../../lib/animations'
 import { useAppStore } from '../../stores/appStore'
 import { clearHistory } from '../../lib/tauri'
@@ -67,36 +67,40 @@ export function History() {
   }, [filtered, t])
 
   return (
-    <div className="w-full h-full flex flex-col text-text-primary">
+    <div className="w-full h-full flex flex-col text-text-primary bg-bg-primary">
       {/* ── Header ── */}
-      <div className="flex items-center gap-4 px-8 py-4 border-b border-border bg-bg-secondary">
-        <h2
+      <div className="flex items-center gap-3 px-5 py-3 border-b border-border bg-bg-secondary shrink-0">
+        <span
           className="text-[11px] text-text-tertiary uppercase tracking-widest shrink-0"
           style={{ fontFamily: 'var(--font-display)' }}
         >
           {t('history.title')}
-        </h2>
-        <div className="relative flex-1">
-          <Search
-            size={12}
-            className="absolute left-0 top-1/2 -translate-y-1/2 text-text-tertiary"
-            strokeWidth={2}
-          />
+        </span>
+        <div className="flex-1 flex items-center gap-2 px-3 py-1.5 rounded-md bg-bg-primary border border-border focus-within:border-border-strong transition-colors">
+          <Search size={12} strokeWidth={2} className="text-text-tertiary shrink-0" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('history.searchPlaceholder')}
-            className="w-full pl-5 pr-0 py-0 bg-transparent border-none text-[13px] text-text-primary outline-none placeholder:text-text-tertiary"
-            style={{ transform: 'none' }}
+            className="flex-1 bg-transparent border-none text-[12px] text-text-primary outline-none placeholder:text-text-tertiary min-w-0"
           />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="shrink-0 text-text-tertiary hover:text-text-primary bg-transparent border-none cursor-pointer text-[11px] leading-none"
+            >
+              ✕
+            </button>
+          )}
         </div>
       </div>
 
       {/* ── Log ── */}
-      <div className="flex-1 overflow-y-auto bg-bg-primary">
+      <div className="flex-1 overflow-y-auto">
         {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-1">
-            <p className="cy-label">
+          <div className="flex flex-col items-center justify-center h-full gap-2 text-center px-8">
+            <Search size={24} strokeWidth={1} className="text-text-tertiary mb-1" />
+            <p className="text-[13px] text-text-secondary">
               {search ? t('history.noResults') : t('history.noHistory')}
             </p>
             {!search && (
@@ -108,66 +112,73 @@ export function History() {
             {Array.from(grouped.entries()).map(([label, entries]) => (
               <div key={label}>
                 {/* Date group header */}
-                <div className="px-8 py-2.5 border-b border-border bg-bg-secondary">
-                  <span className="cy-label">{label}</span>
+                <div className="sticky top-0 z-10 px-5 py-2 border-b border-border bg-bg-secondary/95 backdrop-blur-sm flex items-center gap-3">
+                  <div className="h-px flex-1 bg-border" />
+                  <span
+                    className="text-[10px] text-text-tertiary uppercase tracking-widest shrink-0"
+                    style={{ fontFamily: 'var(--font-display)' }}
+                  >
+                    {label}
+                  </span>
+                  <div className="h-px flex-1 bg-border" />
                 </div>
 
                 {/* Entries */}
                 {entries.map((entry) => {
                   const time = entry.created_at.split('T')[1]?.slice(0, 5) || ''
+                  const isCopied = copiedId === entry.id
                   return (
-                    <motion.div
+                    <div
                       key={entry.id}
-                      whileHover={{ backgroundColor: 'var(--color-bg-secondary)' }}
-                      transition={spring.snappy}
-                      className="group flex items-start gap-0 border-b border-border"
+                      className="group flex items-stretch border-b border-border transition-colors duration-150 ease-out hover:bg-bg-secondary"
                     >
-                      {/* Time + app column */}
+                      {/* Left meta column */}
                       <div
-                        className="shrink-0 px-8 py-3.5 border-r border-border"
-                        style={{ width: '140px' }}
+                        className="shrink-0 flex flex-col justify-center gap-1 px-3.5 py-1 border-r border-border"
+                        style={{ width: '120px' }}
                       >
-                        <p
-                          className="text-[11px] text-text-tertiary"
+                        <span
+                          className="text-[12px] text-text-primary tabular-nums leading-none"
                           style={{ fontFamily: 'var(--font-display)' }}
                         >
                           {time}
-                        </p>
-                        <p
-                          className="text-[11px] text-text-secondary mt-0.5 truncate"
-                          style={{ fontFamily: 'var(--font-display)' }}
-                        >
-                          {entry.app_name}
-                        </p>
+                        </span>
+                        {entry.app_name && (
+                          <span
+                            className="text-[10px] text-text-tertiary truncate leading-none mt-0.5"
+                            style={{ fontFamily: 'var(--font-display)' }}
+                            title={entry.app_name}
+                          >
+                            {entry.app_name}
+                          </span>
+                        )}
                       </div>
 
-                      {/* Text column */}
-                      <div className="flex-1 min-w-0 px-5 py-3.5 flex items-start gap-3">
+                      {/* Text + action column */}
+                      <div className="flex-1 min-w-0 flex items-center gap-3 px-5 py-3.5">
                         <p className="flex-1 text-[13px] text-text-primary leading-relaxed min-w-0">
                           {entry.polished_text}
                         </p>
 
-                        {/* Copy / Copied */}
-                        {copiedId === entry.id ? (
-                          <span
-                            className="shrink-0 text-[10px] text-success self-center"
-                            style={{ fontFamily: 'var(--font-display)' }}
-                          >
-                            {t('history.copied')}
-                          </span>
-                        ) : (
-                          <motion.button
-                            onClick={() => handleCopy(entry.id, entry.polished_text)}
-                            whileTap={{ scale: 0.9 }}
-                            transition={spring.snappy}
-                            className="shrink-0 opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-bg-tertiary transition-all bg-transparent border-none cursor-pointer text-text-tertiary hover:text-text-primary self-center"
-                            aria-label={`Copy: ${entry.polished_text.slice(0, 30)}`}
-                          >
-                            <Copy size={12} strokeWidth={1.75} />
-                          </motion.button>
-                        )}
+                        <motion.button
+                          onClick={() => handleCopy(entry.id, entry.polished_text)}
+                          whileTap={{ scale: 0.88 }}
+                          transition={spring.snappy}
+                          className={`shrink-0 w-7 h-7 flex items-center justify-center rounded-md border cursor-pointer transition-all ${
+                            isCopied
+                              ? 'opacity-100 bg-green-50 border-green-200 text-green-600 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400'
+                              : 'opacity-0 group-hover:opacity-100 bg-transparent border-border text-text-tertiary hover:text-text-primary hover:border-border-strong hover:bg-bg-tertiary'
+                          }`}
+                          aria-label={`Copy: ${entry.polished_text.slice(0, 30)}`}
+                        >
+                          {isCopied ? (
+                            <Check size={11} strokeWidth={2.5} />
+                          ) : (
+                            <Copy size={11} strokeWidth={1.75} />
+                          )}
+                        </motion.button>
                       </div>
-                    </motion.div>
+                    </div>
                   )
                 })}
               </div>
@@ -176,13 +187,18 @@ export function History() {
         )}
       </div>
 
-      {/* ── Clear ── */}
+      {/* ── Footer ── */}
       {history.length > 0 && (
-        <div className="border-t border-border bg-bg-secondary px-8 py-3">
+        <div className="shrink-0 border-t border-border bg-bg-secondary px-5 py-2.5 flex items-center justify-between">
+          <span className="text-[11px] text-text-tertiary" style={{ fontFamily: 'var(--font-display)' }}>
+            {history.length} {t('history.title').toLowerCase()}
+          </span>
           <button
             onClick={handleClear}
-            className="cy-label text-text-tertiary hover:text-error bg-transparent border-none cursor-pointer transition-colors"
+            className="flex items-center gap-1.5 text-[11px] text-text-tertiary hover:text-error bg-transparent border-none cursor-pointer transition-colors"
+            style={{ fontFamily: 'var(--font-display)' }}
           >
+            <Trash2 size={11} strokeWidth={1.75} />
             {t('history.clearAll')}
           </button>
         </div>

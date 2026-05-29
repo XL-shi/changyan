@@ -42,6 +42,8 @@
     "welcomeTitle": "欢迎使用 ChangYan",
     "welcomeSubtitle": "几个简单步骤，即可开始语音输入",
     "step_welcome": "欢迎",
+    "step_stt": "语音识别",
+    "step_llm": "AI 润色",
     "step_done": "完成",
     "speechRecognition": "语音识别",
     "speechRecognitionDesc": "配置 ASR 服务，将语音转换为文字",

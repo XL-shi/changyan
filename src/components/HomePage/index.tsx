@@ -1,4 +1,4 @@
-import { ArrowRight, Crown } from 'lucide-react'
+import { ArrowRight, Crown, Mic, Zap } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { spring } from '../../lib/animations'
@@ -20,87 +20,94 @@ export function HomePage() {
   const todayCount = history.filter((h) => h.created_at.startsWith(today)).length
 
   return (
-    <div className="h-full flex flex-col overflow-y-auto">
-      {/* ── Hotkey hint ── */}
-      <div className="flex items-center justify-between px-8 py-4 border-b border-border">
-        <p className="text-[13px] text-text-secondary">{t('home.recordHint')}</p>
+    <div className="h-full flex flex-col overflow-y-auto bg-bg-primary">
+      {/* ── Hotkey bar ── */}
+      <div
+        className="flex items-center justify-between px-6 py-3 border-b border-border bg-bg-secondary"
+        style={{ minHeight: '44px' }}
+      >
+        <div className="flex items-center gap-2">
+          <Mic size={12} strokeWidth={1.75} className="text-text-tertiary" />
+          <p className="text-[12px] text-text-tertiary">{t('home.recordHint')}</p>
+        </div>
         <kbd
-          className="shrink-0 ml-4 px-2 py-0.5 rounded text-[11px] text-text-primary border border-border-strong"
-          style={{ fontFamily: 'var(--font-display)' }}
+          className="shrink-0 px-2.5 py-1 rounded text-[11px] bg-bg-tertiary border border-border-strong text-text-primary"
+          style={{ fontFamily: 'var(--font-display)', letterSpacing: '0.02em' }}
         >
           {config.hotkey}
         </kbd>
       </div>
 
-      {/* ── Hero stats ── */}
-      <div className="px-8 py-8 border-b border-border">
-        <div className="grid grid-cols-2">
-          <div className="pr-8 border-r border-border">
-            <p className="cy-stat text-[52px] text-text-primary">{history.length}</p>
-            <p className="cy-label mt-2">{t('home.totalRecordings')}</p>
+      <div className="flex-1 px-6 py-5 flex flex-col gap-4 min-h-0">
+        {/* ── Stat cards ── */}
+        <div className="grid grid-cols-2 gap-3">
+          <StatCard value={history.length} label={t('home.totalRecordings')} />
+          <StatCard value={todayCount} label={t('home.today')} highlight />
+        </div>
+
+        {/* ── Config panel ── */}
+        <div className="bg-bg-secondary border border-border rounded-lg overflow-hidden shadow-sm">
+          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-bg-primary">
+            <Zap size={11} strokeWidth={2} className="text-text-tertiary" />
+            <span className="cy-label">{t('home.currentConfig')}</span>
           </div>
-          <div className="pl-8">
-            <p className="cy-stat text-[52px] text-text-primary">{todayCount}</p>
-            <p className="cy-label mt-2">{t('home.today')}</p>
+          <div>
+            <ConfigRow label={t('home.sttProvider')} value={config.stt_provider} />
+            <ConfigRow label={t('home.llmProvider')} value={config.llm_provider} />
+            <ConfigRow
+              label={t('home.aiPolish')}
+              value={config.polish_enabled ? t('home.enabled') : t('home.disabled')}
+              isStatus
+              statusOk={config.polish_enabled}
+            />
+            <ConfigRow label={t('home.outputMode')} value={config.output_mode} last />
           </div>
         </div>
-      </div>
 
-      {/* ── Configuration ── */}
-      <div className="px-8 py-6 border-b border-border">
-        <p className="cy-label mb-4">{t('home.currentConfig')}</p>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-          <ConfigItem label={t('home.sttProvider')} value={config.stt_provider} />
-          <ConfigItem label={t('home.llmProvider')} value={config.llm_provider} />
-          <ConfigItem
-            label={t('home.aiPolish')}
-            value={config.polish_enabled ? t('home.enabled') : t('home.disabled')}
-          />
-          <ConfigItem label={t('home.outputMode')} value={config.output_mode} />
-        </div>
-      </div>
-
-      {/* ── Plan / Quota — cloud users only ── */}
-      {user && (
-        <div className="px-8 py-6 border-b border-border">
-          <div className="flex items-center gap-2 mb-4">
-            {isPro && <Crown size={11} className="text-amber-500" />}
-            <p className="cy-label">{isPro ? t('home.proPlan') : t('home.freePlan')}</p>
-            {!isPro && (
-              <button
-                onClick={() => navigate('upgrade')}
-                className="ml-auto text-[11px] text-text-secondary hover:text-text-primary bg-transparent border-none cursor-pointer transition-colors underline"
-                style={{ fontFamily: 'var(--font-display)' }}
-              >
-                {t('home.upgradeToPro')}
-              </button>
+        {/* ── Plan / Quota — cloud users only ── */}
+        {user && (
+          <div className="bg-bg-secondary border border-border rounded-lg overflow-hidden shadow-sm">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-bg-primary">
+              <div className="flex items-center gap-2">
+                {isPro && <Crown size={11} className="text-amber-500" />}
+                <span className="cy-label">{isPro ? t('home.proPlan') : t('home.freePlan')}</span>
+              </div>
+              {!isPro && (
+                <button
+                  onClick={() => navigate('upgrade')}
+                  className="text-[11px] text-text-tertiary hover:text-text-primary bg-transparent border-none cursor-pointer transition-colors"
+                  style={{ fontFamily: 'var(--font-display)', letterSpacing: '0.04em' }}
+                >
+                  {t('home.upgradeToPro')} →
+                </button>
+              )}
+            </div>
+            {sttSecondsLimit > 0 && (
+              <div className="px-4 py-3 space-y-3">
+                <QuotaRow
+                  label={t('upgrade.stt')}
+                  used={sttSecondsUsed}
+                  limit={sttSecondsLimit}
+                  unit="h"
+                  divisor={3600}
+                />
+                <QuotaRow
+                  label={t('upgrade.llm')}
+                  used={llmTokensUsed}
+                  limit={llmTokensLimit}
+                  unit="k"
+                  divisor={1000}
+                />
+              </div>
             )}
           </div>
-          {sttSecondsLimit > 0 && (
-            <div className="space-y-4">
-              <QuotaRow
-                label={t('upgrade.stt')}
-                used={sttSecondsUsed}
-                limit={sttSecondsLimit}
-                unit="h"
-                divisor={3600}
-              />
-              <QuotaRow
-                label={t('upgrade.llm')}
-                used={llmTokensUsed}
-                limit={llmTokensLimit}
-                unit="k"
-                divisor={1000}
-              />
-            </div>
-          )}
-        </div>
-      )}
+        )}
 
-      {/* ── Quick actions ── */}
-      <div className="px-8 py-6 flex gap-8">
-        <NavLink label={t('nav.settings')} onClick={() => navigate('settings')} />
-        <NavLink label={t('nav.history')} onClick={() => navigate('history')} />
+        {/* ── Quick actions ── */}
+        <div className="mt-auto grid grid-cols-2 gap-3 pt-1">
+          <ActionButton label={t('nav.settings')} onClick={() => navigate('settings')} />
+          <ActionButton label={t('nav.history')} onClick={() => navigate('history')} />
+        </div>
       </div>
     </div>
   )
@@ -108,25 +115,87 @@ export function HomePage() {
 
 /* ── Sub-components ── */
 
-function ConfigItem({ label, value }: { label: string; value: string }) {
+function StatCard({
+  value,
+  label,
+  highlight,
+}: {
+  value: number
+  label: string
+  highlight?: boolean
+}) {
   return (
-    <div className="min-w-0">
-      <p className="cy-label mb-1">{label}</p>
-      <p className="cy-config-value">{value}</p>
+    <div
+      className={`rounded-lg border px-5 py-4 shadow-sm ${
+        highlight
+          ? 'bg-bg-secondary border-border-strong'
+          : 'bg-bg-secondary border-border'
+      }`}
+      style={highlight ? { borderTopWidth: '2px', borderTopColor: 'var(--color-text-primary)' } : undefined}
+    >
+      <p className="cy-stat text-[42px] leading-none text-text-primary">{value}</p>
+      <p
+        className="mt-2 text-[10px] uppercase tracking-widest text-text-tertiary"
+        style={{ fontFamily: 'var(--font-display)' }}
+      >
+        {label}
+      </p>
     </div>
   )
 }
 
-function NavLink({ label, onClick }: { label: string; onClick: () => void }) {
+function ConfigRow({
+  label,
+  value,
+  isStatus,
+  statusOk,
+  last,
+}: {
+  label: string
+  value: string
+  isStatus?: boolean
+  statusOk?: boolean
+  last?: boolean
+}) {
+  return (
+    <div
+      className={`flex items-center justify-between px-4 py-2.5 ${last ? '' : 'border-b border-border'}`}
+    >
+      <span className="text-[12px] text-text-secondary">{label}</span>
+      {isStatus ? (
+        <span
+          className={`text-[11px] px-2 py-0.5 rounded-full border ${
+            statusOk
+              ? 'text-green-700 bg-green-50 border-green-200 dark:text-green-400 dark:bg-green-900/20 dark:border-green-800'
+              : 'text-text-tertiary bg-bg-tertiary border-border'
+          }`}
+          style={{ fontFamily: 'var(--font-display)' }}
+        >
+          {value}
+        </span>
+      ) : (
+        <span
+          className="text-[12px] text-text-primary max-w-[160px] truncate"
+          style={{ fontFamily: 'var(--font-display)' }}
+        >
+          {value}
+        </span>
+      )}
+    </div>
+  )
+}
+
+function ActionButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <motion.button
       onClick={onClick}
-      whileHover={{ x: 2 }}
+      whileHover={{ y: -1 }}
       whileTap={{ scale: 0.97 }}
       transition={spring.snappy}
-      className="flex items-center gap-1.5 text-[13px] text-text-secondary hover:text-text-primary bg-transparent border-none cursor-pointer transition-colors"
+      className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-bg-secondary border border-border text-[12px] text-text-secondary hover:text-text-primary hover:border-border-strong cursor-pointer transition-all shadow-sm hover:shadow-md"
+      style={{ fontFamily: 'var(--font-sans)' }}
     >
-      <ArrowRight size={13} strokeWidth={1.75} />
+      <ArrowRight size={12} strokeWidth={1.75} />
       {label}
     </motion.button>
   )
@@ -157,12 +226,13 @@ function QuotaRow({
           className="text-[11px] text-text-tertiary"
           style={{ fontFamily: 'var(--font-display)' }}
         >
-          {usedDisplay}/{limitDisplay}{unit}
+          {usedDisplay}/{limitDisplay}
+          {unit}
         </span>
       </div>
-      <div className="h-px bg-border overflow-hidden rounded-full">
+      <div className="h-[3px] bg-bg-tertiary rounded-full overflow-hidden">
         <div
-          className={`h-full transition-all ${pct > 90 ? 'bg-error' : 'bg-text-secondary'}`}
+          className={`h-full rounded-full transition-all ${pct > 90 ? 'bg-error' : 'bg-text-secondary'}`}
           style={{ width: `${pct}%` }}
         />
       </div>

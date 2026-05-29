@@ -52,12 +52,12 @@ export function DirtyBar() {
     resetConfig()
   }
 
-  const bgClass =
+  const dotColor =
     saveResult === 'success'
-      ? 'bg-success/10 border-t border-success/20'
+      ? 'bg-success'
       : saveResult === 'error'
-        ? 'bg-error/10 border-t border-error/20'
-        : 'bg-warning/10 border-t border-warning/20'
+        ? 'bg-error'
+        : 'bg-warning'
 
   const labelText =
     saveResult === 'success'
@@ -71,17 +71,20 @@ export function DirtyBar() {
       ? 'text-success'
       : saveResult === 'error'
         ? 'text-error'
-        : 'text-warning'
+        : 'text-text-secondary'
 
   return (
     <motion.div
-      className={`flex items-center justify-between px-5 py-3 ${bgClass}`}
+      className="flex items-center justify-between px-5 py-3 bg-bg-primary border-t border-border"
       initial={{ y: 20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       exit={{ y: 20, opacity: 0 }}
       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
     >
-      <span className={`${labelColor} text-[13px] truncate mr-3`}>{labelText}</span>
+      <span className={`flex items-center gap-2 ${labelColor} text-[13px] truncate mr-3`}>
+        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
+        {labelText}
+      </span>
       {saveResult !== 'success' && (
         <div className="flex items-center gap-2 flex-shrink-0">
           <button

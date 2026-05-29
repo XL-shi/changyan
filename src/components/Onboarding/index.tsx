@@ -13,11 +13,11 @@ import {
 } from '../../lib/tauri'
 import { OnboardingLayout } from './OnboardingLayout'
 import { WelcomeStep } from './WelcomeStep'
-// import { AccountStep } from './AccountStep'
+import { LlmSetupStep } from './LlmSetupStep'
 import { DoneStep } from './DoneStep'
 import { slideRight } from '../../lib/animations'
 
-const TOTAL_STEPS = 2
+const TOTAL_STEPS = 3
 
 export function Onboarding() {
   const { t } = useTranslation()
@@ -25,18 +25,17 @@ export function Onboarding() {
   const setStep = useAppStore((s) => s.setOnboardingStep)
   const setOnboardingCompleted = useAppStore((s) => s.setOnboardingCompleted)
   const updateConfig = useAppStore((s) => s.updateConfig)
+  const llmTestStatus = useAppStore((s) => s.llmTestStatus)
   const [isFinalizing, setIsFinalizing] = useState(false)
   const [modelDownloadProgress, setModelDownloadProgress] = useState(0)
   const [modelDownloadError, setModelDownloadError] = useState<string | null>(null)
 
-  // Steps: 0: Welcome, 1: Done
-  const canNext = true
+  // Steps: 0: Welcome, 1: LLM Setup, 2: Done
+  const canNext = step === 1 ? llmTestStatus === 'success' : true
 
   const titles = [
-    {
-      title: t('onboarding.welcomeTitle'),
-      subtitle: t('onboarding.welcomeSubtitle'),
-    },
+    { title: t('onboarding.welcomeTitle'), subtitle: t('onboarding.welcomeSubtitle') },
+    { title: t('onboarding.aiPolish'), subtitle: t('onboarding.aiPolishDesc') },
     { title: t('onboarding.setupComplete'), subtitle: undefined },
   ]
 
@@ -117,10 +116,6 @@ export function Onboarding() {
     }
   }
 
-  const handleSkip = async () => {
-    await completeOnboarding()
-  }
-
   return (
     <OnboardingLayout
       step={step}
@@ -139,7 +134,6 @@ export function Onboarding() {
       }
       onNext={handleNext}
       onBack={handleBack}
-      onSkip={isFinalizing ? undefined : handleSkip}
     >
       <AnimatePresence mode="wait">
         <motion.div
@@ -151,7 +145,8 @@ export function Onboarding() {
           transition={{ duration: 0.2 }}
         >
           {step === 0 && <WelcomeStep />}
-          {step === 1 && (
+          {step === 1 && <LlmSetupStep />}
+          {step === 2 && (
             <DoneStep
               isFinalizing={isFinalizing}
               modelDownloadProgress={modelDownloadProgress}

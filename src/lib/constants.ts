@@ -32,7 +32,7 @@ export const STT_PROVIDERS = [
   { value: 'openai-whisper', label: 'OpenAI Whisper' },
   { value: 'groq-whisper', label: 'Groq Whisper' },
   { value: 'siliconflow', label: 'SiliconFlow (硅基流动)' },
-  { value: 'cloud', label: 'ChangYan Cloud' },
+  // { value: 'cloud', label: 'ChangYan Cloud' },
 ] as const
 
 export const LLM_PROVIDERS = [
@@ -47,7 +47,7 @@ export const LLM_PROVIDERS = [
   { value: 'claude', label: 'Claude' },
   { value: 'ollama', label: 'Ollama (Local)' },
   { value: 'openrouter', label: 'OpenRouter' },
-  { value: 'cloud', label: 'ChangYan Cloud' },
+  // { value: 'cloud', label: 'ChangYan Cloud' },
 ] as const
 
 export const LLM_DEFAULT_CONFIG: Record<string, { baseUrl: string; model: string }> = {

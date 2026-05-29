@@ -42,6 +42,8 @@
     "welcomeTitle": "Welcome to ChangYan",
     "welcomeSubtitle": "A few quick steps to get started with voice input",
     "step_welcome": "Welcome",
+    "step_stt": "Speech Recognition",
+    "step_llm": "AI Polish",
     "step_done": "Done",
     "speechRecognition": "Speech Recognition",
     "speechRecognitionDesc": "Configure your ASR service to convert speech to text",
