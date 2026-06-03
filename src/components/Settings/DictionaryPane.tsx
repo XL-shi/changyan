@@ -44,13 +44,13 @@ export function DictionaryPane() {
           value={word}
           onChange={(e) => setWord(e.target.value)}
           placeholder={t('dictionary.word')}
-          className="flex-1 px-3 py-2.5 bg-bg-secondary border border-border rounded-[10px] text-[13px] text-text-primary outline-none focus:border-border-focus transition-colors"
+          className="cy-input flex-1"
         />
         <input
           value={pronunciation}
           onChange={(e) => setPronunciation(e.target.value)}
           placeholder={t('dictionary.pronunciationOptional')}
-          className="flex-1 px-3 py-2.5 bg-bg-secondary border border-border rounded-[10px] text-[13px] text-text-primary outline-none focus:border-border-focus transition-colors"
+          className="cy-input flex-1"
         />
         <button
           onClick={handleAdd}
@@ -62,7 +62,7 @@ export function DictionaryPane() {
         </button>
       </div>
 
-      <div className="border border-border rounded-[10px] overflow-hidden">
+      <div className="cy-section-card overflow-hidden">
         <table className="w-full text-[13px]">
           <thead>
             <tr className="bg-bg-secondary">

@@ -91,7 +91,7 @@ export function LlmPane() {
             setLlmLatencyMs(null)
             setModels([])
           }}
-          className="w-full px-3 py-2.5 bg-bg-secondary border border-border rounded-[10px] text-[13px] text-text-primary outline-none focus:border-border-focus transition-colors"
+          className="cy-input w-full"
         >
           {LLM_PROVIDERS.map((p) => (
             <option key={p.value} value={p.value}>
@@ -128,7 +128,7 @@ export function LlmPane() {
                   setLlmLatencyMs(null)
                 }}
                 placeholder={t('settings.enterApiKey')}
-                className="flex-1 px-3 py-2.5 bg-bg-secondary border border-border rounded-[10px] text-[13px] text-text-primary outline-none focus:border-border-focus transition-colors"
+                className="cy-input flex-1"
               />
               <button
                 onClick={handleTest}
@@ -160,7 +160,7 @@ export function LlmPane() {
                   value={config.llm_model}
                   onChange={(e) => { updateConfig({ llm_model: e.target.value }); setLlmLatencyMs(null) }}
                   placeholder="e.g. gpt-4o-mini"
-                  className="w-full px-3 py-2.5 bg-bg-secondary border border-border rounded-[10px] text-[13px] text-text-primary outline-none focus:border-border-focus transition-colors"
+                  className="cy-input w-full"
                 />
                 <datalist id="llm-model-list">
                   {models.map((m) => (
@@ -171,7 +171,7 @@ export function LlmPane() {
               <button
                 onClick={() => doFetchModels(config.llm_api_key, config.llm_base_url)}
                 disabled={fetchingModels || !config.llm_base_url}
-                className="px-3 py-2.5 bg-bg-secondary border border-border rounded-[10px] text-[13px] text-text-secondary cursor-pointer hover:border-border-focus disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                className="jelly-btn px-3 py-2.5 rounded-[10px] text-[13px] text-text-secondary cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
                 title={t('settings.fetchModels')}
               >
                 <RefreshCw size={14} className={fetchingModels ? 'animate-spin' : ''} />
@@ -189,7 +189,7 @@ export function LlmPane() {
               value={config.llm_base_url}
               onChange={(e) => updateConfig({ llm_base_url: e.target.value })}
               placeholder="https://open.bigmodel.cn/api/paas/v4"
-              className="w-full px-3 py-2.5 bg-bg-secondary border border-border rounded-[10px] text-[13px] text-text-primary outline-none focus:border-border-focus transition-colors"
+              className="cy-input w-full"
             />
           </FormField>
         </>

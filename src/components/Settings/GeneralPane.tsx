@@ -331,7 +331,7 @@ export function GeneralPane() {
       {/* ── Keyboard Shortcuts ── */}
       <SectionHeader icon={<Keyboard size={14} />} title={t('settings.keyboardShortcuts', '键盘快捷键')} />
 
-      <div className="bg-bg-secondary border border-border rounded-[12px] divide-y divide-border">
+      <div className="cy-section-card divide-y divide-border">
         {/* Voice input hotkey */}
         <div className="flex items-center gap-4 px-4 py-3.5">
           <div className="min-w-0 flex-1">
@@ -370,7 +370,7 @@ export function GeneralPane() {
       {/* ── Language ── */}
       <SectionHeader icon={<Globe size={14} />} title={t('settings.languageSection', '语言')} />
 
-      <div className="bg-bg-secondary border border-border rounded-[12px] divide-y divide-border">
+      <div className="cy-section-card divide-y divide-border">
         {/* UI Language */}
         <div className="flex items-center justify-between px-4 py-3.5">
           <div>
@@ -386,7 +386,7 @@ export function GeneralPane() {
               updateConfig({ ui_language: lang })
               i18n.changeLanguage(lang)
             }}
-            className="px-3 py-2 bg-bg-secondary border border-border rounded-[10px] text-[13px] text-text-primary outline-none focus:border-border-focus transition-colors min-w-[160px]"
+            className="cy-input min-w-[160px]"
           >
             <option value="en">English</option>
             <option value="zh">简体中文（中国大陆）</option>
@@ -406,7 +406,7 @@ export function GeneralPane() {
           <select
             value={config.target_lang}
             onChange={(e) => updateConfig({ target_lang: e.target.value })}
-            className="px-3 py-2 bg-bg-secondary border border-border rounded-[10px] text-[13px] text-text-primary outline-none focus:border-border-focus transition-colors min-w-[160px]"
+            className="cy-input min-w-[160px]"
           >
             {TARGET_LANGUAGES.map((l) => (
               <option key={l.value} value={l.value}>
@@ -500,7 +500,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <h3 className="text-[11px] font-medium text-text-tertiary uppercase tracking-wider mb-2">
         {title}
       </h3>
-      <div className="bg-bg-secondary border border-border rounded-[12px] p-4">
+      <div className="cy-section-card p-4">
         {children}
       </div>
     </div>

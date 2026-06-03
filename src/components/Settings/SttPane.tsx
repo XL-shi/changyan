@@ -192,7 +192,7 @@ export function SttPane() {
             setSttTestStatus('idle')
             setSttLatencyMs(null)
           }}
-          className="w-full px-3 py-2.5 bg-bg-secondary border border-border rounded-[10px] text-[13px] text-text-primary outline-none focus:border-border-focus transition-colors"
+          className="cy-input w-full"
         >
           {STT_PROVIDERS.map((p) => (
             <option key={p.value} value={p.value}>
@@ -230,7 +230,7 @@ export function SttPane() {
                 setSttLatencyMs(null)
               }}
               placeholder={t('settings.enterApiKey')}
-              className="flex-1 px-3 py-2.5 bg-bg-secondary border border-border rounded-[10px] text-[13px] text-text-primary outline-none focus:border-border-focus transition-colors"
+              className="cy-input flex-1"
             />
             <button
               onClick={handleTest}
@@ -260,7 +260,7 @@ export function SttPane() {
         <select
           value={config.stt_language}
           onChange={(e) => updateConfig({ stt_language: e.target.value })}
-          className="w-full px-3 py-2.5 bg-bg-secondary border border-border rounded-[10px] text-[13px] text-text-primary outline-none focus:border-border-focus transition-colors"
+          className="cy-input w-full"
         >
           {LANGUAGES.map((l) => (
             <option key={l.value} value={l.value}>
