@@ -174,12 +174,12 @@ export function Capsule() {
 
       {/* Persistent outer shell — jelly capsule, anchored to bottom-left */}
       <motion.div
-        className={`absolute bottom-3 left-3 rounded-full pointer-events-auto shrink-0 ${
+        className={`absolute bottom-3 left-3 pointer-events-auto shrink-0 ${
           capsuleState === 'error'
-            ? 'jelly-capsule-error'
+            ? 'jelly-capsule-error rounded-2xl'
             : capsuleState === 'idle'
-              ? 'jelly-capsule text-neutral-700'
-              : 'jelly-capsule-active text-white'
+              ? 'jelly-capsule rounded-full text-neutral-700'
+              : 'jelly-capsule-active rounded-full text-white'
         }`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}

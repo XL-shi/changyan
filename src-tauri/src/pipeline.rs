@@ -1266,7 +1266,7 @@ impl PipelineHandle {
 
                     let _ = self
                         .app_handle
-                        .emit("pipeline:error", format!("LLM polishing failed: {e}"));
+                        .emit("pipeline:error", format!("LLM polish failed: {e}"));
                     if let Err(e) = self
                         .output_text(&final_text, &app_ctx.app_name, &config)
                         .await

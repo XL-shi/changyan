@@ -17,7 +17,7 @@ function getSizeForState(
   toastVisible: boolean,
 ): CapsuleSize {
   if (contextMenuOpen) return { width: 220, height: 220 }
-  if (hasError) return { width: 200, height: 36 }
+  if (hasError) return { width: 300, height: 80 }
   if (expanded) return { width: 220, height: 90 }
 
   let base: CapsuleSize

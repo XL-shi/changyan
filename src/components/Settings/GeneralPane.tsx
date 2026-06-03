@@ -58,14 +58,19 @@ function HotkeyChips({ hotkey, onClear }: { hotkey: string; onClear?: () => void
   const chips = parseHotkeyChips(hotkey)
   if (!chips.length) return null
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-1">
       {chips.map((chip, i) => (
-        <span
+        <kbd
           key={i}
-          className="px-2 py-1 rounded-[8px] text-[12px] font-mono bg-bg-secondary border border-border text-text-primary leading-none"
+          className="inline-flex items-center justify-center px-2.5 py-1 min-w-[32px] h-[26px] rounded-[6px] text-[11px] font-mono font-semibold leading-none select-none
+            text-text-primary
+            bg-gradient-to-b from-bg-secondary to-bg-tertiary
+            border border-border
+            shadow-[0_2px_0_0_var(--tw-shadow-color),0_1px_2px_rgba(0,0,0,0.08)]
+            [--tw-shadow-color:var(--color-border,rgba(0,0,0,0.18))]"
         >
           {chip}
-        </span>
+        </kbd>
       ))}
       {onClear && (
         <button
@@ -73,10 +78,10 @@ function HotkeyChips({ hotkey, onClear }: { hotkey: string; onClear?: () => void
             e.stopPropagation()
             onClear()
           }}
-          className="ml-1 p-1 rounded-md text-text-tertiary hover:text-text-secondary transition-colors border-none bg-transparent cursor-pointer"
+          className="ml-0.5 p-1 rounded-md text-text-tertiary hover:text-text-secondary transition-colors border-none bg-transparent cursor-pointer"
           title="Clear"
         >
-          <X size={13} />
+          <X size={12} />
         </button>
       )}
     </div>
@@ -328,33 +333,37 @@ export function GeneralPane() {
 
       <div className="bg-bg-secondary border border-border rounded-[12px] divide-y divide-border">
         {/* Voice input hotkey */}
-        <div className="flex items-center justify-between px-4 py-3.5">
-          <div>
+        <div className="flex items-center gap-4 px-4 py-3.5">
+          <div className="min-w-0 flex-1">
             <p className="text-[13px] font-medium text-text-primary">
               {t('settings.voiceInputHotkey', '语音输入')}
             </p>
-            <p className="text-[11px] text-text-tertiary mt-0.5">
-              {t('settings.voiceInputHotkeyDesc', '按下开始和停止语音输入')}
+            <p className="text-[11px] text-text-tertiary mt-0.5 truncate">
+              {t('settings.voiceInputHotkeyDesc', '按下开始录音，再次按下结束并转录')}
             </p>
           </div>
-          <HotkeyRecorder value={config.hotkey} onSave={handleSaveHotkey} />
+          <div className="flex-shrink-0">
+            <HotkeyRecorder value={config.hotkey} onSave={handleSaveHotkey} />
+          </div>
         </div>
 
         {/* Translate hotkey */}
-        <div className="flex items-center justify-between px-4 py-3.5">
-          <div>
+        <div className="flex items-center gap-4 px-4 py-3.5">
+          <div className="min-w-0 flex-1">
             <p className="text-[13px] font-medium text-text-primary">
               {t('settings.translateHotkey', '翻译')}
             </p>
-            <p className="text-[11px] text-text-tertiary mt-0.5">
-              {t('settings.translateHotkeyDesc', '按下开始和停止翻译。')}
+            <p className="text-[11px] text-text-tertiary mt-0.5 truncate">
+              {t('settings.translateHotkeyDesc', '按下开始录音，结束后自动翻译为目标语言')}
             </p>
           </div>
-          <HotkeyRecorder
-            value={config.translate_hotkey ?? ''}
-            onSave={handleSaveTranslateHotkey}
-            clearable
-          />
+          <div className="flex-shrink-0">
+            <HotkeyRecorder
+              value={config.translate_hotkey ?? ''}
+              onSave={handleSaveTranslateHotkey}
+              clearable
+            />
+          </div>
         </div>
       </div>
 

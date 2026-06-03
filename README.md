@@ -1,240 +1,138 @@
-# ChangYan
+# 畅言
 
-ChangYan is a Tauri 2 desktop app for speech-to-text and AI text polishing.
-Press a hotkey, speak naturally, and ChangYan transcribes, rewrites, and outputs text directly into the app you're using.
+**AI 语音输入桌面工具** — 按下快捷键，开口说话，文字直接打进任何应用。
 
-[Releases](https://github.com/XL-shi/changyan/releases) | [Issues](https://github.com/XL-shi/changyan/issues) | [Repository](https://github.com/XL-shi/changyan)
+[下载](https://github.com/XL-shi/changyan/releases) · [反馈 / Issues](https://github.com/XL-shi/changyan/issues)
 
 ---
 
-## Why ChangYan?
+## 核心功能
 
-| | ChangYan | macOS Dictation | Windows Voice Typing | Whisper Desktop |
-|---|---|---|---|---|
-| AI text polishing | ✅ Multiple LLMs | ❌ | ❌ | ❌ |
-| STT flexibility | ✅ Local, direct API, or cloud | ❌ Apple only | ❌ Microsoft only | ❌ Whisper only |
-| Works in any app | ✅ | ✅ | ✅ | ❌ Copy-paste |
-| Translation mode | ✅ | ❌ | ❌ | ❌ |
-| Local STT option | ✅ SenseVoice Small | ❌ | ❌ | ✅ |
-| Cross-platform | ✅ Win/Mac/Linux | ❌ Mac only | ❌ Windows only | ✅ |
-| Custom dictionary | ✅ | ❌ | ❌ | ❌ |
-| Self-hostable | ✅ BYOK | ❌ | ❌ | ✅ |
+- **一键语音输入** — 全局快捷键，按下开始说话，松开即输出
+- **本地转写，免费离线** — 内置 SenseVoice Small，无需 API Key，首次使用自动下载
+- **AI 润色** — 接入自己的大模型 Key，原始转写稿自动变成通顺的书面表达
+- **输出到任意应用** — 模拟键盘输入或写入剪贴板，兼容所有输入框
+- **翻译模式** — 说中文，输出英文（或其他 20+ 语言）
+- **历史记录** — 本地保存所有转写结果，支持全文搜索
+- **自定义词典** — 添加专有名词，提升领域识别准确率
+- **深色 / 浅色主题**，开机自启
 
-## Features
+---
 
-- 🎙️ Global hotkey recording with hold-to-record or toggle mode
-- 💊 Floating capsule window for recording and processing status
-- 🗣️ Multiple STT options: local `sensevoice-local`, Deepgram, AssemblyAI, GLM-ASR, OpenAI Whisper, Groq Whisper, SiliconFlow, and ChangYan Cloud
-- 🤖 Multiple LLM providers: Zhipu, DeepSeek, SiliconFlow, OpenAI, Gemini, Moonshot, Qwen, Groq, Claude, Ollama, OpenRouter, and ChangYan Cloud
-- ⚡ Streaming output — text appears as the LLM generates it
-- ⌨️ Keyboard simulation or clipboard output
-- 📝 Highlight text before recording to give the LLM context
-- 🌐 Translation mode with 20+ target languages
-- 📖 Custom dictionary for domain-specific terms
-- 🔍 Per-app context detection for better prompting and formatting
-- 📜 Local history with full-text search
-- 🌗 Dark / light / system theme
-- 🚀 Auto-start on login
+## 支持的服务商
 
-> [!TIP]
-> **Recommended Configuration for Best Experience**
->
-> | | Provider | Model |
-> |---|---|---|
-> | 🗣️ STT | Local | `sensevoice-small` |
-> | 🤖 AI Polish | DeepSeek | `deepseek-chat` |
->
-> This setup gives you a low-latency local transcription path plus strong rewriting quality for daily use.
+| 类型 | 支持的服务商 |
+|------|-------------|
+| 语音识别 (STT) | SenseVoice Small（本地免费）、Deepgram、AssemblyAI、智谱 GLM-ASR、OpenAI Whisper、Groq Whisper、硅基流动 |
+| AI 润色 (LLM) | 智谱、DeepSeek、硅基流动、OpenAI、Gemini、Moonshot (Kimi)、通义千问、Groq、Claude、Ollama（本地）、OpenRouter |
 
-## Download & Installation
+> **推荐搭配**：语音识别用默认本地 SenseVoice Small（零延迟、免费），AI 润色用 DeepSeek（效果好、费用极低）。
+
+---
+
+## 下载安装
 
 ### macOS
 
-#### Option 1: Homebrew (Recommended) ⭐
+**[前往 Releases 下载](https://github.com/XL-shi/changyan/releases)**
 
-The easiest way to install on macOS — no manual authorization needed:
-
-```bash
-brew tap XL-shi/changyan
-brew install --cask changyan
-```
-
-**Advantages**:
-- ✅ One-line installation
-- ✅ Automatic updates with `brew upgrade`
-- ✅ No signing issues — Homebrew handles everything
-- ✅ Easy uninstall with `brew uninstall --cask changyan`
-
-#### Option 2: Manual DMG Install
-
-**[Download from Releases](https://github.com/XL-shi/changyan/releases)**
-
-| Architecture | File |
-|--------------|------|
-| Apple Silicon (M1/M2/M3) | `ChangYan_*_aarch64.dmg` |
+| 芯片 | 文件 |
+|------|------|
+| Apple Silicon（M 系列） | `ChangYan_*_aarch64.dmg` |
 | Intel | `ChangYan_*_x86_64.dmg` |
 
-**⚠️ Important**: The app uses ad-hoc signing (free, no Apple Developer account). First launch requires manual authorization:
+由于未使用 Apple 开发者签名，首次打开需要手动授权（只需一次）：
 
-**Method 1 (Easiest)** - Terminal command:
+**方式一（推荐）** — 终端执行：
 ```bash
 xattr -cr /Applications/ChangYan.app
 ```
 
-**Method 2** - Right-click open:
-1. Drag `ChangYan.app` to Applications folder
-2. Right-click → "Open" → Click "Open" in dialog
-3. Only needed once, then opens normally
+**方式二** — 右键打开：拖入 Applications 后，右键 → 打开 → 弹窗中点"打开"
 
-**Method 3** - System Settings:
-1. Try to open the app (error will show)
-2. Open System Settings → Privacy & Security
-3. Click "Open Anyway" under Security section
-
-> **Why?** macOS Gatekeeper blocks apps without Apple Developer ID ($99/year). The ad-hoc signature ensures the app hasn't been tampered with, but requires one-time manual authorization. **Homebrew automates this for you.**
+**方式三** — 系统设置：尝试打开后，进入「系统设置 → 隐私与安全性」，点击"仍要打开"
 
 ### Windows
 
-**[Download from Releases](https://github.com/XL-shi/changyan/releases)**
-
-Download and run the `.msi` installer.
+下载并运行 `.msi` 安装包即可。
 
 ### Linux
 
-**[Download from Releases](https://github.com/XL-shi/changyan/releases)**
+```bash
+# Debian / Ubuntu
+sudo dpkg -i changyan_*.deb
 
-- **Debian/Ubuntu**: `sudo dpkg -i changyan_*.deb`
-- **Fedora/RHEL**: `sudo rpm -i changyan-*.rpm`
-- **AppImage**: `chmod +x ChangYan-*.AppImage && ./ChangYan-*.AppImage`
+# Fedora / RHEL
+sudo rpm -i changyan-*.rpm
 
-## Prerequisites
+# AppImage
+chmod +x ChangYan-*.AppImage && ./ChangYan-*.AppImage
+```
 
-- [Node.js](https://nodejs.org/) 20+
-- [Rust](https://rustup.rs/) (stable toolchain)
-- Platform-specific dependencies for Tauri: see [Tauri Prerequisites](https://v2.tauri.app/start/prerequisites/)
+---
 
-## Getting Started
+## 快速上手
+
+1. 安装后首次启动进入引导流程
+2. 语音识别默认使用本地 SenseVoice Small，**首次会自动下载模型**（约 300MB），下载完成后离线可用
+3. AI 润色步骤填入你的大模型 API Key（支持 DeepSeek、通义千问等），点测试通过后继续
+4. 完成引导，设置全局快捷键（默认 `Fn` 键）
+5. 在任意应用中按下快捷键，开口说话，松开后文字自动输入
+
+---
+
+## 隐私说明
+
+- 语音数据直接发送给你配置的 STT 服务商（或完全在本地处理），**不经过畅言服务器**
+- API Key 保存在本地，使用系统 Keychain 加密存储（macOS）
+- 选择本地 SenseVoice + 本地 Ollama，可实现完全离线使用
+
+---
+
+## 本地开发
+
+**环境要求**：Node.js 20+、Rust stable、[Tauri 前置依赖](https://v2.tauri.app/start/prerequisites/)
 
 ```bash
-# Install dependencies
+# 安装依赖
 npm install
 
-# Run in development mode
+# 启动完整开发环境（前端 + Rust）
 npm run tauri dev
 
-# Build for production
+# 测 onboarding / 模型下载隔离环境
+npm run tauri:dev:devtest
+
+# 仅调前端页面
+npm run dev
+
+# 生产构建
 npm run tauri build
 ```
 
-The built application will be in `src-tauri/target/release/bundle/`.
+**发布版本时**，同步更新以下三处版本号：
+- `package.json`
+- `src-tauri/Cargo.toml`
+- `src-tauri/tauri.conf.json`
 
-## Configuration
+---
 
-All settings are accessible from the in-app Settings panel:
+## 常见问题
 
-- **Speech Recognition** — choose STT provider and enter your API key
-- **AI Polish** — choose LLM provider, model, and API key
-- **General** — hotkey, output mode, theme, auto-start
-- **Dictionary** — add custom terms for better transcription accuracy
-- **Scenes** — prompt templates for different use cases
+**语音识别需要联网吗？**
+默认的 SenseVoice Small 完全在本地运行，无需联网。选择其他云端 STT 服务商则需要对应的 API Key 和网络。
 
-API keys are stored locally via `tauri-plugin-store`. In BYOK mode, STT and LLM requests go directly to the provider you configure.
+**AI 润色是必须的吗？**
+不是。关闭 AI 润色后，转写结果会直接输出，不经过大模型处理。
 
-### Cloud Option
+**支持哪些语言？**
+SenseVoice Small 支持中、英、日、韩、粤语等多语言自动检测。云端服务商支持 99+ 语言。翻译模式支持 20+ 目标语言。
 
-ChangYan also supports an optional cloud mode for managed STT / LLM access, backup, restore, and account-based features. This is optional — the app remains usable with your own keys or local models.
+**API Key 安全吗？**
+Key 只存储在本地设备，通过系统 Keychain 加密，请求直接发往服务商，不经过任何中转。
 
-### BYOK (Bring Your Own Key) vs Cloud
-
-| | BYOK Mode | Cloud Mode |
-|---|---|---|
-| STT | Your own API key or local model | Managed STT quota |
-| LLM | Your own API key or local model | Managed LLM quota |
-| Cloud dependency | None for direct-provider mode | Requires a configured cloud backend |
-| Account features | Not required | Sign-in, backup, restore, scene packs |
-
-All core features — recording, transcription, AI polish, keyboard/clipboard output, dictionary, and history — work without ChangYan Cloud when you use direct providers or local models.
-
-### Self-Hosting / No Cloud
-
-To run ChangYan without any cloud dependency:
-
-1. Choose any non-Cloud STT and LLM provider in Settings
-2. Use local models or enter your own API keys
-3. That's it — no ChangYan account is required
-
-If you want to point optional cloud features at your own backend, set these environment variables before building:
-
-| Variable | Description |
-|---|---|
-| `VITE_API_BASE_URL` | Frontend cloud API base URL |
-| `API_BASE_URL` | Rust backend cloud API base URL |
-
-```bash
-# Example: build with a custom backend
-VITE_API_BASE_URL=https://my-server.example.com API_BASE_URL=https://my-server.example.com npm run tauri build
-```
-
-## Architecture
-
-**Data Flow Pipeline:**
-
-```text
-Microphone → Audio Capture → STT Provider → Raw Transcript → LLM Polish → Keyboard/Clipboard Output
-```
-
-```text
-src/                  # React frontend (TypeScript)
-├── components/       # UI components (Settings, History, Capsule, etc.)
-├── hooks/            # React hooks (recording, theme, Tauri events)
-├── lib/              # Utilities (API client, router, constants)
-└── stores/           # Zustand state management
-
-src-tauri/src/        # Rust backend
-├── audio/            # Audio capture via cpal
-├── stt/              # STT providers (local, direct API, and cloud)
-├── llm/              # LLM providers (direct API and cloud)
-├── output/           # Text output (keyboard simulation, clipboard paste)
-├── storage/          # Config (tauri-plugin-store) + history/dictionary (SQLite)
-├── app_detector/     # Detect active application for context
-├── pipeline.rs       # Recording → STT → LLM → Output orchestration
-└── lib.rs            # Tauri app setup, commands, hotkey handling
-```
-
-## FAQ
-
-**Is my audio sent to the cloud?**
-In BYOK mode, audio goes directly to your chosen STT provider or local model. In cloud mode, audio is sent to the configured cloud backend.
-
-**Can I use it offline?**
-With a local STT provider such as SenseVoice Small and a local LLM such as Ollama, the app can work without external cloud services.
-
-**Which languages are supported?**
-STT supports 99+ languages depending on the provider. AI polish and translation support 20+ target languages.
-
-**Is the app free?**
-The app is fully functional with your own API keys or local models. Cloud-based features are optional.
-
-## Project Links
-
-- 🐛 [Issue Tracker](https://github.com/XL-shi/changyan/issues) — Bug reports and feature requests
-- 📖 [Contributing Guide](CONTRIBUTING.md) — Development setup and guidelines
-- 🔒 [Security Policy](SECURITY.md) — Report vulnerabilities responsibly
-- 🧭 [Vision](VISION.md) — Project principles and roadmap direction
-- 💬 [Support](SUPPORT.md) — How to get help
-
-## Contributing
-
-Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
+---
 
 ## License
 
 [MIT](LICENSE)
-
-## 启动
-平时完整开发：npm run tauri:dev
-测 onboarding / 模型下载隔离环境：npm run tauri:dev:devtest
-只改前端页面：npm run dev
-
-## 发布版本
-同步提高 package.json、src-tauri/Cargo.toml、src-tauri/tauri.conf.json 里的 version

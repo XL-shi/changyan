@@ -6,7 +6,7 @@ import { SettingsSidebar, type PaneId } from './SettingsSidebar'
 import { GeneralPane } from './GeneralPane'
 import { SttPane } from './SttPane'
 import { LlmPane } from './LlmPane'
-// import { DictionaryPane } from './DictionaryPane'
+import { DictionaryPane } from './DictionaryPane'
 // import { ScenesPane } from './ScenesPane'
 // import { AboutPane } from './AboutPane'
 import { DirtyBar, useDirtyConfig } from './shared/DirtyBar'
@@ -15,7 +15,7 @@ const paneTitleKeys: Record<PaneId, string> = {
   general: 'settings.general',
   stt: 'settings.speechRecognition',
   llm: 'settings.aiPolish',
-  // dictionary: 'settings.dictionary',
+  dictionary: 'settings.dictionary',
   // scenes: 'settings.scenes',
   // about: 'settings.about',
 }
@@ -52,12 +52,12 @@ export function Settings() {
           </div>
 
           {/* Pane content */}
-          <div ref={scrollRef} className="flex-1 overflow-y-auto px-8 py-6 bg-bg-primary">
+          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-2 bg-bg-primary">
             <div className="w-full">
               {activePane === 'general' && <GeneralPane />}
               {activePane === 'stt' && <SttPane />}
               {activePane === 'llm' && <LlmPane />}
-              {/* {activePane === 'dictionary' && <DictionaryPane />} */}
+              {activePane === 'dictionary' && <DictionaryPane />}
               {/* {activePane === 'scenes' && <ScenesPane />} */}
               {/* {activePane === 'about' && <AboutPane />} */}
             </div>

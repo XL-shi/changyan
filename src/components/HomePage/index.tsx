@@ -30,12 +30,18 @@ export function HomePage() {
           <Mic size={12} strokeWidth={1.75} className="text-text-tertiary" />
           <p className="text-[12px] text-text-tertiary">{t('home.recordHint')}</p>
         </div>
-        <kbd
-          className="shrink-0 px-2.5 py-1 rounded text-[11px] bg-bg-tertiary border border-border-strong text-text-primary"
-          style={{ fontFamily: 'var(--font-display)', letterSpacing: '0.02em' }}
-        >
-          {config.hotkey}
-        </kbd>
+        <div className="flex items-center gap-1 shrink-0">
+          {config.hotkey.split('+').map((k) => (
+            <kbd
+              key={k}
+              className="inline-flex items-center justify-center px-2.5 py-1 min-w-[32px] h-[26px] rounded-[6px] text-[11px] font-mono font-semibold leading-none select-none
+                text-text-primary bg-gradient-to-b from-bg-secondary to-bg-tertiary border border-border
+                shadow-[0_2px_0_0_rgba(0,0,0,0.15),0_1px_2px_rgba(0,0,0,0.08)]"
+            >
+              {k.trim()}
+            </kbd>
+          ))}
+        </div>
       </div>
 
       <div className="flex-1 px-6 py-5 flex flex-col gap-4 min-h-0">

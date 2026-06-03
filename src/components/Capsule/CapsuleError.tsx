@@ -15,7 +15,7 @@ export function CapsuleError() {
       setPipelineError(null)
       resetRecording()
       setPipelineState('idle')
-    }, 2500)
+    }, 4000)
     return () => clearTimeout(timer)
   }, [setPipelineError, resetRecording, setPipelineState])
 
@@ -25,14 +25,22 @@ export function CapsuleError() {
 
   return (
     <motion.div
-      className="relative z-10 flex items-center gap-2 h-9 px-3"
-      initial={{ opacity: 0, x: -4 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.3, ease: 'easeOut' }}
+      className="relative z-10 flex flex-col gap-1.5 px-3.5 py-3 w-[300px]"
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
     >
-      {/* White dot */}
-      <motion.div className="w-2 h-2 rounded-full bg-white/80 flex-shrink-0" />
-      <p className="text-[11px] text-white truncate flex-1">{message}</p>
+      <div className="flex items-center gap-2">
+        <motion.div
+          className="w-2 h-2 rounded-full bg-white flex-shrink-0"
+          animate={{ opacity: [1, 0.4, 1] }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+        />
+        <span className="text-[11px] font-semibold text-white/70 uppercase tracking-wider">
+          Error
+        </span>
+      </div>
+      <p className="text-[12px] text-white leading-snug break-words whitespace-normal">{message}</p>
     </motion.div>
   )
 }

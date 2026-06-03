@@ -81,19 +81,15 @@ function ShortcutRow({
           chips.map((chip) => (
             <kbd
               key={`${title}-${chip}`}
-              className="px-2 py-0.5 text-[11px] border border-border rounded-[3px] text-text-primary bg-bg-tertiary"
-              style={{ fontFamily: 'var(--font-display)' }}
+              className="inline-flex items-center justify-center px-2.5 py-1 min-w-[32px] h-[26px] rounded-[6px] text-[11px] font-mono font-semibold leading-none select-none
+                text-text-primary bg-gradient-to-b from-bg-secondary to-bg-tertiary border border-border
+                shadow-[0_2px_0_0_rgba(0,0,0,0.15),0_1px_2px_rgba(0,0,0,0.08)]"
             >
               {chip}
             </kbd>
           ))
         ) : (
-          <span
-            className="px-2 py-0.5 text-[11px] border border-border rounded-[3px] text-text-tertiary bg-bg-tertiary"
-            style={{ fontFamily: 'var(--font-display)' }}
-          >
-            —
-          </span>
+          <span className="text-[12px] text-text-tertiary">—</span>
         )}
       </div>
     </div>

@@ -93,16 +93,17 @@ impl LlmProvider for OpenAiProvider {
 
         if !response.status().is_success() {
             let status = response.status();
-            let text = response.text().await.unwrap_or_default();
-            // Truncate at a valid UTF-8 char boundary to avoid panic on multi-byte chars
-            let truncate_at = text
-                .char_indices()
-                .take_while(|&(i, _)| i < 200)
-                .last()
-                .map(|(i, c)| i + c.len_utf8())
-                .unwrap_or(text.len());
-            let sanitized = &text[..truncate_at];
-            anyhow::bail!("LLM API error {}: {}", status, sanitized);
+            let body = response.text().await.unwrap_or_default();
+            tracing::error!("LLM API error {}: {}", status, body);
+            let msg = match status.as_u16() {
+                401 => "API key invalid. Please check your LLM settings.",
+                403 => "API access denied. Please verify your API key.",
+                429 => "Rate limit exceeded. Please try again later.",
+                400 => "Invalid request. Please check your LLM model settings.",
+                500 | 502 | 503 => "LLM service unavailable. Please try again later.",
+                _ => "LLM request failed. Please check your settings.",
+            };
+            anyhow::bail!("{}", msg);
         }
 
         if let Some(callback) = on_chunk {
