@@ -11,15 +11,15 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:        #f4f4f4;
+      --bg:        #f9f7f4;
       --bg-card:   #ffffff;
-      --bg-card-2: #fafafa;
-      --bg-tert:   #ebebeb;
-      --text:      #0a0a0a;
-      --muted:     #5a5a5a;
-      --muted-2:   #adadad;
-      --border:    #e2e2e2;
-      --border-2:  #c8c8c8;
+      --bg-card-2: #fdfcfa;
+      --bg-tert:   #eeebe5;
+      --text:      #18120a;
+      --muted:     #6b5e4e;
+      --muted-2:   #b5a894;
+      --border:    #e6e0d8;
+      --border-2:  #cfc8bc;
       --font-mono: ui-monospace, 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
     }
 
@@ -49,11 +49,11 @@
       justify-content: center;
       font-family: ui-monospace, 'SF Mono', monospace;
       font-weight: 700;
-      color: #1a1a1a;
-      background: linear-gradient(to bottom, #f2f2f2, #e6e6e6);
-      border: 1px solid #d4d4d4;
+      color: #2a1f12;
+      background: linear-gradient(to bottom, #f4f1ec, #eae5dc);
+      border: 1px solid #d8d2c8;
       border-radius: 7px;
-      box-shadow: 0 3px 0 0 #c2c2c2, 0 1px 3px rgba(0,0,0,0.08);
+      box-shadow: 0 3px 0 0 #c4bdb2, 0 1px 3px rgba(0,0,0,0.07);
       white-space: nowrap;
       user-select: none;
     }
@@ -118,7 +118,7 @@
       justify-content: space-between;
       padding: 0 48px;
       height: 56px;
-      background: rgba(244,244,244,0.88);
+      background: rgba(249,247,244,0.90);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
       border-bottom: 1px solid var(--border);
@@ -170,12 +170,12 @@
       font-weight: 500;
       font-family: var(--font-mono);
       letter-spacing: 0.04em;
-      color: #f0f0f0;
-      background: linear-gradient(to bottom, #1e1e1e, #080808);
+      color: #f5efe6;
+      background: linear-gradient(to bottom, #2a1f12, #110c06);
       padding: 6px 16px;
       border-radius: 6px;
       border: none;
-      box-shadow: 0 2px 0 0 rgba(0,0,0,0.5), 0 1px 3px rgba(0,0,0,0.2);
+      box-shadow: 0 2px 0 0 rgba(0,0,0,0.45), 0 1px 3px rgba(0,0,0,0.18);
       text-decoration: none;
       transition: opacity 0.1s, transform 0.08s, box-shadow 0.08s;
     }
@@ -203,9 +203,9 @@
     .hero-content { position: relative; z-index: 2; }
 
     .hero-en {
-      font-size: 11px;
+      font-size: 16px;
       font-family: var(--font-mono);
-      font-weight: 400;
+      font-weight: 500;
       letter-spacing: 0.22em;
       text-transform: uppercase;
       color: var(--muted-2);
@@ -213,8 +213,8 @@
     }
 
     .hero h1 {
-      font-size: clamp(52px, 9vw, 100px);
-      font-weight: 300;
+      font-size: clamp(48px, 8vw, 88px);
+      font-weight: 400;
       letter-spacing: -0.035em;
       line-height: 1.0;
       margin-bottom: 28px;
@@ -251,8 +251,8 @@
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      background: linear-gradient(to bottom, #1e1e1e, #080808);
-      color: #f0f0f0;
+      background: linear-gradient(to bottom, #2a1f12, #110c06);
+      color: #f5efe6;
       padding: 12px 26px;
       border-radius: 8px;
       border: none;
@@ -293,13 +293,13 @@
     }
 
     .hero-meta {
-      font-size: 11px;
+      font-size: 12px;
       font-family: var(--font-mono);
       color: var(--muted-2);
       letter-spacing: 0.06em;
     }
 
-    /* ── Hero key visual ── */
+    /* ── Hero mic visual ── */
     .hero-key-demo {
       margin-top: 72px;
       position: relative;
@@ -307,36 +307,69 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 20px;
+      gap: 24px;
+    }
+
+    .demo-mic-wrap {
+      position: relative;
+      width: 140px;
+      height: 140px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .demo-ripple {
+      position: absolute;
+      border-radius: 50%;
+      border: 1.5px solid transparent;
+      border-left-color: var(--border-2);
+      border-right-color: var(--border-2);
+      width: 88px;
+      height: 88px;
+      opacity: 0;
+      animation: rippleOut 2.8s ease-out infinite;
+      pointer-events: none;
+    }
+    .demo-ripple:nth-child(1) { animation-delay: 0s; }
+    .demo-ripple:nth-child(2) { animation-delay: 0.9s; }
+    .demo-ripple:nth-child(3) { animation-delay: 1.8s; }
+
+    @keyframes rippleOut {
+      0%   { transform: scale(1);   opacity: 0.5; }
+      100% { transform: scale(2.0); opacity: 0; }
     }
 
     .demo-key {
       width: 88px;
       height: 88px;
-      background: linear-gradient(to bottom, var(--bg-card), var(--bg-tert));
+      background: linear-gradient(145deg, var(--bg-card), var(--bg-tert));
       border: 1px solid var(--border);
-      border-radius: 14px;
-      box-shadow: 0 6px 0 0 var(--border-2), 0 8px 24px rgba(0,0,0,0.08);
+      border-radius: 50%;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.05);
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      transition: transform 0.08s ease, box-shadow 0.08s ease;
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
       user-select: none;
+      position: relative;
+      z-index: 1;
     }
     .demo-key:hover {
-      border-color: var(--border-2);
+      box-shadow: 0 6px 28px rgba(0,0,0,0.11), 0 1px 4px rgba(0,0,0,0.06);
+      transform: translateY(-2px);
     }
     .demo-key.pressed {
-      transform: translateY(4px);
-      box-shadow: 0 2px 0 0 var(--border-2), 0 3px 8px rgba(0,0,0,0.06);
+      transform: scale(0.93);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.07);
     }
 
     .demo-caption {
       display: flex;
       align-items: center;
       gap: 10px;
-      font-size: 11px;
+      font-size: 12px;
       font-family: var(--font-mono);
       color: var(--muted-2);
       letter-spacing: 0.04em;
@@ -351,7 +384,7 @@
       min-width: 28px;
       height: 24px;
       border-radius: 5px;
-      font-size: 11px;
+      font-size: 12px;
       font-family: var(--font-mono);
       font-weight: 600;
       line-height: 1;
@@ -365,7 +398,7 @@
 
     /* ── Section shared ── */
     .section {
-      padding: 80px 48px;
+      padding: 70px 48px;
       max-width: 1080px;
       margin: 0 auto;
       position: relative;
@@ -375,7 +408,7 @@
     .section-border { border-top: 1px solid var(--border); }
 
     .eyebrow {
-      font-size: 10px;
+      font-size: 12px;
       font-family: var(--font-mono);
       font-weight: 500;
       letter-spacing: 0.16em;
@@ -472,7 +505,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 11px;
+      font-size: 12px;
       font-family: var(--font-mono);
       color: var(--muted);
       margin: 0 auto 24px;
@@ -492,16 +525,15 @@
     }
 
     .provider-chip {
-      font-size: 11px;
+      font-size: 12px;
       font-family: var(--font-mono);
-      font-weight: 500;
+      font-weight: 400;
       color: var(--muted);
-      padding: 5px 12px;
-      height: 28px;
-      background: linear-gradient(to bottom, var(--bg-card), var(--bg-tert));
+      padding: 4px 12px;
+      height: 26px;
+      background: transparent;
       border: 1px solid var(--border);
-      border-radius: 6px;
-      box-shadow: 0 2px 0 0 var(--border-2);
+      border-radius: 20px;
       transition: color 0.12s, border-color 0.12s;
       cursor: default;
       display: inline-flex;
@@ -519,7 +551,7 @@
       border-top: 1px solid var(--border);
       position: relative;
       overflow: hidden;
-      background: linear-gradient(to bottom, var(--bg), #ececec);
+      background: linear-gradient(to bottom, var(--bg), #ede8e0);
     }
 
     .cta-glow {
@@ -581,18 +613,18 @@
 
     /* ── Footer ── */
     footer {
-      padding: 28px 48px;
+      padding: 20px 48px;
       border-top: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: space-between;
       position: relative;
       z-index: 1;
-      background: var(--bg-card);
+      background: var(--bg);
     }
 
     .footer-copy {
-      font-size: 11px;
+      font-size: 12px;
       font-family: var(--font-mono);
       color: var(--muted-2);
       letter-spacing: 0.04em;
@@ -604,7 +636,7 @@
     }
 
     .footer-links a {
-      font-size: 11px;
+      font-size: 12px;
       font-family: var(--font-mono);
       color: var(--muted-2);
       text-decoration: none;
@@ -627,9 +659,9 @@
       background: linear-gradient(
         105deg,
         transparent 5%,
-        rgba(255,255,255,0.3) 30%,
-        rgba(255,255,255,0.7) 50%,
-        rgba(255,255,255,0.3) 70%,
+        rgba(200,160,80,0.18) 25%,
+        rgba(220,175,90,0.65) 50%,
+        rgba(200,160,80,0.18) 75%,
         transparent 95%
       );
       animation: shimmerSweep 2.5s cubic-bezier(0.25,0.1,0.1,1) forwards;
@@ -641,8 +673,8 @@
       100% { left: 200%; }
     }
     @keyframes btnGlow {
-      0%   { box-shadow: 0 3px 0 0 var(--border-2), 0 0 16px rgba(0,0,0,0.12); }
-      60%  { box-shadow: 0 3px 0 0 var(--border-2), 0 0 6px rgba(0,0,0,0.04); }
+      0%   { box-shadow: 0 3px 0 0 var(--border-2), 0 0 16px rgba(180,130,50,0.2); }
+      60%  { box-shadow: 0 3px 0 0 var(--border-2), 0 0 6px rgba(180,130,50,0.06); }
       100% { box-shadow: 0 3px 0 0 var(--border-2); }
     }
 
@@ -712,7 +744,7 @@
       畅言 · ChangYan
     </a>
     <div class="nav-right">
-      <a href="#features" class="nav-link">features</a>
+      <a href="#features" class="nav-link">功能</a>
       <a href="https://github.com/XL-shi/changyan" class="nav-link">github</a>
       <a href="#download" class="nav-btn">下载</a>
     </div>
@@ -722,7 +754,7 @@
   <section class="hero" id="home">
     <div class="hero-bg"></div>
     <div class="hero-content">
-      <p class="hero-en a1">just speak. text appears.</p>
+      <p class="hero-en a1">just speak.</p>
       <h1 class="a2">开口即落笔<br>声尽文成</h1>
       <p class="hero-desc a3">
         AI 驱动的语音输入桌面应用。<br>
@@ -735,29 +767,31 @@
       <div class="btn-row">
         <a href="#" class="btn-ghost">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
-          macOS
+          下载 macOS 版
         </a>
         <a href="#" class="btn-ghost">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
-          Windows
+          下载 Windows 版
         </a>
       </div>
-      <p class="hero-meta">免费开源 · MIT License · BYOK 无限制</p>
     </div>
 
     <!-- Large keyboard key visual -->
     <div class="hero-key-demo a5">
-      <div class="demo-key" id="demoKey">
-        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.35)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
-          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-          <line x1="12" y1="19" x2="12" y2="22"/>
-        </svg>
+      <div class="demo-mic-wrap">
+        <div class="demo-ripple"></div>
+        <div class="demo-ripple"></div>
+        <div class="demo-ripple"></div>
+        <div class="demo-key" id="demoKey">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.4)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="22"/>
+          </svg>
+        </div>
       </div>
       <div class="demo-caption">
-        <kbd>Fn</kbd>
-        <span style="color:#d0d0d0">→</span>
-        <span>按下开始录音</span>
+        <span>按下快捷键，开口即录</span>
       </div>
     </div>
   </section>
@@ -829,20 +863,20 @@
 
   <!-- How it works -->
   <div class="section-border" style="position:relative;z-index:1">
-    <div class="section" style="text-align:center">
-      <p class="eyebrow" style="justify-content:center">使用方式</p>
-      <h2 class="section-h" style="margin-bottom:72px">三步，开始语音输入</h2>
+    <div class="section">
+      <p class="eyebrow" >使用方式</p>
+      <h2 class="section-h">三步，开始语音输入</h2>
 
-      <div class="steps-row">
+      <div class="steps-row" style="text-align:center">
         <div class="step reveal reveal-delay-1">
           <div class="step-num">01</div>
           <div class="step-title">下载安装</div>
-          <div class="step-body">下载 .dmg，拖入应用程序文件夹，启动 ChangYan</div>
+          <div class="step-body">根据系统下载安装包，按提示完成安装，启动 ChangYan</div>
         </div>
         <div class="step reveal reveal-delay-2">
           <div class="step-num">02</div>
           <div class="step-title">填入 API Key</div>
-          <div class="step-body">在设置中填入 Deepgram 等 STT 服务的 API 密钥</div>
+          <div class="step-body">在设置中填入 AI 润色服务的 API 密钥，语音识别可直接使用本地模型</div>
         </div>
         <div class="step reveal reveal-delay-3">
           <div class="step-num">03</div>
@@ -870,6 +904,7 @@
         <span class="provider-chip">硅基流动</span>
         <span class="provider-chip">Groq Whisper</span>
         <span class="provider-chip">SenseVoice 本地</span>
+        <span class="provider-chip">OpenAI GPT</span>
         <span class="provider-chip">DeepSeek</span>
         <span class="provider-chip">Claude</span>
         <span class="provider-chip">Google Gemini</span>
@@ -886,15 +921,15 @@
   <div class="cta-wrap" style="position:relative;z-index:1">
     <div class="cta-glow"></div>
     <h2>开口，即落笔</h2>
-    <p>free · open source · byok · mit license</p>
+    <!-- <p>free · open source · byok · mit license</p> -->
     <div class="btn-row" style="justify-content:center;position:relative;z-index:1">
       <a href="#" class="btn-cta">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
-        下载 macOS 版
+        macOS
       </a>
       <a href="#" class="btn-cta">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
-        下载 Windows 版
+        Windows
       </a>
     </div>
   </div>
@@ -946,7 +981,7 @@
 
   <!-- Footer -->
   <footer>
-    <span class="footer-copy">© 2025 ChangYan · 畅言 · MIT License</span>
+    <span class="footer-copy">© 2026 ChangYan · 畅言 · MIT License</span>
     <div class="footer-links">
       <a href="https://github.com/XL-shi/changyan">GitHub</a>
       <a href="https://github.com/XL-shi/changyan/releases">版本记录</a>
